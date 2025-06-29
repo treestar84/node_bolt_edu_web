@@ -1,103 +1,19 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
+import { useSupabase } from '@/composables/useSupabase';
 import type { WordItem, Book, Quiz, Badge, ApiKey, Language } from '@/types';
 
 export const useAppStore = defineStore('app', () => {
+  const { supabase } = useSupabase();
+  
   // Language state
   const currentLanguage = ref<Language>('ko');
   
-  // Words state
-  const currentWords = ref<WordItem[]>([
-    {
-      id: '1',
-      name: '고양이',
-      nameEn: 'Cat',
-      imageUrl: 'https://images.pexels.com/photos/104827/cat-pet-animal-domestic-104827.jpeg?auto=compress&cs=tinysrgb&w=300',
-      audioKo: '/audio/cat-ko.mp3',
-      audioEn: '/audio/cat-en.mp3',
-      category: 'animals'
-    },
-    {
-      id: '2',
-      name: '강아지',
-      nameEn: 'Dog',
-      imageUrl: 'https://images.pexels.com/photos/1108099/pexels-photo-1108099.jpeg?auto=compress&cs=tinysrgb&w=300',
-      audioKo: '/audio/dog-ko.mp3',
-      audioEn: '/audio/dog-en.mp3',
-      category: 'animals'
-    },
-    {
-      id: '3',
-      name: '사과',
-      nameEn: 'Apple',
-      imageUrl: 'https://images.pexels.com/photos/102104/pexels-photo-102104.jpeg?auto=compress&cs=tinysrgb&w=300',
-      audioKo: '/audio/apple-ko.mp3',
-      audioEn: '/audio/apple-en.mp3',
-      category: 'fruits'
-    },
-    {
-      id: '4',
-      name: '바나나',
-      nameEn: 'Banana',
-      imageUrl: 'https://images.pexels.com/photos/61127/pexels-photo-61127.jpeg?auto=compress&cs=tinysrgb&w=300',
-      audioKo: '/audio/banana-ko.mp3',
-      audioEn: '/audio/banana-en.mp3',
-      category: 'fruits'
-    },
-    {
-      id: '5',
-      name: '자동차',
-      nameEn: 'Car',
-      imageUrl: 'https://images.pexels.com/photos/116675/pexels-photo-116675.jpeg?auto=compress&cs=tinysrgb&w=300',
-      audioKo: '/audio/car-ko.mp3',
-      audioEn: '/audio/car-en.mp3',
-      category: 'vehicles'
-    },
-    {
-      id: '6',
-      name: '버스',
-      nameEn: 'Bus',
-      imageUrl: 'https://images.pexels.com/photos/385998/pexels-photo-385998.jpeg?auto=compress&cs=tinysrgb&w=300',
-      audioKo: '/audio/bus-ko.mp3',
-      audioEn: '/audio/bus-en.mp3',
-      category: 'vehicles'
-    }
-  ]);
+  // Words state - 이제 데이터베이스에서 로드
+  const currentWords = ref<WordItem[]>([]);
 
-  // Books state
-  const currentBooks = ref<Book[]>([
-    {
-      id: '1',
-      title: '동물 친구들',
-      coverImage: 'https://images.pexels.com/photos/104827/cat-pet-animal-domestic-104827.jpeg?auto=compress&cs=tinysrgb&w=400',
-      pages: [
-        {
-          id: 'page-1',
-          imageUrl: 'https://images.pexels.com/photos/104827/cat-pet-animal-domestic-104827.jpeg?auto=compress&cs=tinysrgb&w=400',
-          audio: '/audio/book1-page1.mp3',
-          text: '귀여운 고양이가 있어요'
-        },
-        {
-          id: 'page-2',
-          imageUrl: 'https://images.pexels.com/photos/1108099/pexels-photo-1108099.jpeg?auto=compress&cs=tinysrgb&w=400',
-          audio: '/audio/book1-page2.mp3',
-          text: '강아지도 함께 놀아요'
-        },
-        {
-          id: 'page-3',
-          imageUrl: 'https://images.pexels.com/photos/326012/pexels-photo-326012.jpeg?auto=compress&cs=tinysrgb&w=400',
-          audio: '/audio/book1-page3.mp3',
-          text: '새들이 하늘을 날아요'
-        },
-        {
-          id: 'page-4',
-          imageUrl: 'https://images.pexels.com/photos/1108099/pexels-photo-1108099.jpeg?auto=compress&cs=tinysrgb&w=400',
-          audio: '/audio/book1-page4.mp3',
-          text: '모든 동물들이 친구예요'
-        }
-      ]
-    }
-  ]);
+  // Books state - 이제 데이터베이스에서 로드
+  const currentBooks = ref<Book[]>([]);
 
   // Quiz state
   const quizScore = ref(0);
@@ -107,45 +23,7 @@ export const useAppStore = defineStore('app', () => {
   const puzzleCompletions = ref(0);
 
   // Badge state
-  const currentBadges = ref<Badge[]>([
-    {
-      id: 'badge-1',
-      name: '첫 걸음',
-      icon: '🚗',
-      description: '첫 번째 퀴즈 정답',
-      requiredScore: 1,
-      unlocked: false,
-      category: 'quiz'
-    },
-    {
-      id: 'badge-2',
-      name: '운전 초보',
-      icon: '🚌',
-      description: '퀴즈 5점 달성',
-      requiredScore: 5,
-      unlocked: false,
-      category: 'quiz'
-    },
-    {
-      id: 'badge-3',
-      name: '운전 고수',
-      icon: '🚀',
-      description: '퀴즈 10점 달성',
-      requiredScore: 10,
-      unlocked: false,
-      category: 'quiz'
-    },
-    {
-      id: 'badge-4',
-      name: '퍼즐 마스터',
-      icon: '🧩',
-      description: '첫 번째 퍼즐 완성',
-      requiredScore: 1,
-      unlocked: false,
-      category: 'puzzle'
-    }
-  ]);
-
+  const currentBadges = ref<Badge[]>([]);
   const unlockedBadges = ref<string[]>([]);
 
   // Admin state
@@ -190,43 +68,396 @@ export const useAppStore = defineStore('app', () => {
     currentLanguage.value = language;
   };
 
-  const addWord = (word: Omit<WordItem, 'id'>) => {
-    const newWord: WordItem = {
-      ...word,
-      id: Date.now().toString()
-    };
-    currentWords.value.push(newWord);
-  };
+  // 데이터베이스에서 단어 로드
+  const loadWords = async () => {
+    try {
+      console.log('📚 Loading words from database...');
+      const { data, error } = await supabase
+        .from('words')
+        .select('*')
+        .eq('owner_type', 'global') // 공용 단어만 로드 (관리자가 추가한 것들)
+        .order('created_at', { ascending: false });
 
-  const updateWord = (id: string, updates: Partial<WordItem>) => {
-    const index = currentWords.value.findIndex(w => w.id === id);
-    if (index !== -1) {
-      currentWords.value[index] = { ...currentWords.value[index], ...updates };
+      if (error) {
+        console.error('❌ Error loading words:', error);
+        return;
+      }
+
+      // 데이터베이스 형식을 프론트엔드 형식으로 변환
+      currentWords.value = (data || []).map(transformWordFromDB);
+      console.log('✅ Words loaded:', currentWords.value.length);
+    } catch (error) {
+      console.error('💥 Error in loadWords:', error);
     }
   };
 
-  const deleteWord = (id: string) => {
-    currentWords.value = currentWords.value.filter(w => w.id !== id);
-  };
+  // 데이터베이스에서 책 로드
+  const loadBooks = async () => {
+    try {
+      console.log('📖 Loading books from database...');
+      const { data, error } = await supabase
+        .from('books')
+        .select(`
+          *,
+          book_pages (*)
+        `)
+        .eq('owner_type', 'global') // 공용 책만 로드 (관리자가 추가한 것들)
+        .order('created_at', { ascending: false });
 
-  const addBook = (book: Omit<Book, 'id'>) => {
-    const newBook: Book = {
-      ...book,
-      id: Date.now().toString()
-    };
-    currentBooks.value.push(newBook);
-  };
+      if (error) {
+        console.error('❌ Error loading books:', error);
+        return;
+      }
 
-  const updateBook = (id: string, updates: Partial<Book>) => {
-    const index = currentBooks.value.findIndex(b => b.id === id);
-    if (index !== -1) {
-      currentBooks.value[index] = { ...currentBooks.value[index], ...updates };
+      // 데이터베이스 형식을 프론트엔드 형식으로 변환
+      currentBooks.value = (data || []).map(transformBookFromDB);
+      console.log('✅ Books loaded:', currentBooks.value.length);
+    } catch (error) {
+      console.error('💥 Error in loadBooks:', error);
     }
   };
 
-  const deleteBook = (id: string) => {
-    currentBooks.value = currentBooks.value.filter(b => b.id !== id);
+  // 데이터베이스에서 뱃지 로드
+  const loadBadges = async () => {
+    try {
+      console.log('🏆 Loading badges from database...');
+      const { data, error } = await supabase
+        .from('badges')
+        .select('*')
+        .order('required_score');
+
+      if (error) {
+        console.error('❌ Error loading badges:', error);
+        return;
+      }
+
+      currentBadges.value = data || [];
+      console.log('✅ Badges loaded:', currentBadges.value.length);
+    } catch (error) {
+      console.error('💥 Error in loadBadges:', error);
+    }
   };
+
+  // 모든 데이터 로드
+  const loadAllData = async () => {
+    console.log('🔄 Loading all data from database...');
+    await Promise.all([
+      loadWords(),
+      loadBooks(),
+      loadBadges()
+    ]);
+    console.log('✅ All data loaded successfully');
+  };
+
+  // 단어 추가 (데이터베이스에 저장)
+  const addWord = async (word: Omit<WordItem, 'id'>) => {
+    try {
+      console.log('➕ Adding word to database:', word.name);
+      
+      const { data, error } = await supabase
+        .from('words')
+        .insert({
+          name: word.name,
+          name_en: word.nameEn,
+          image_url: word.imageUrl,
+          audio_ko: word.audioKo,
+          audio_en: word.audioEn,
+          category: word.category,
+          min_age: word.minAge || 3,
+          max_age: word.maxAge || 6,
+          owner_type: 'global', // 관리자가 추가하는 것은 공용으로 설정
+          owner_id: null
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ Error adding word:', error);
+        throw error;
+      }
+
+      // 로컬 상태 업데이트
+      const newWord = transformWordFromDB(data);
+      currentWords.value.unshift(newWord);
+      
+      console.log('✅ Word added successfully:', newWord.name);
+      return newWord;
+    } catch (error) {
+      console.error('💥 Error in addWord:', error);
+      throw error;
+    }
+  };
+
+  // 단어 수정
+  const updateWord = async (id: string, updates: Partial<WordItem>) => {
+    try {
+      console.log('📝 Updating word in database:', id);
+      
+      const dbUpdates: any = { updated_at: new Date().toISOString() };
+      if (updates.name) dbUpdates.name = updates.name;
+      if (updates.nameEn) dbUpdates.name_en = updates.nameEn;
+      if (updates.imageUrl) dbUpdates.image_url = updates.imageUrl;
+      if (updates.audioKo) dbUpdates.audio_ko = updates.audioKo;
+      if (updates.audioEn) dbUpdates.audio_en = updates.audioEn;
+      if (updates.category) dbUpdates.category = updates.category;
+      if (updates.minAge) dbUpdates.min_age = updates.minAge;
+      if (updates.maxAge) dbUpdates.max_age = updates.maxAge;
+
+      const { data, error } = await supabase
+        .from('words')
+        .update(dbUpdates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ Error updating word:', error);
+        throw error;
+      }
+
+      // 로컬 상태 업데이트
+      const index = currentWords.value.findIndex(w => w.id === id);
+      if (index !== -1) {
+        currentWords.value[index] = transformWordFromDB(data);
+      }
+      
+      console.log('✅ Word updated successfully');
+      return transformWordFromDB(data);
+    } catch (error) {
+      console.error('💥 Error in updateWord:', error);
+      throw error;
+    }
+  };
+
+  // 단어 삭제
+  const deleteWord = async (id: string) => {
+    try {
+      console.log('🗑️ Deleting word from database:', id);
+      
+      const { error } = await supabase
+        .from('words')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('❌ Error deleting word:', error);
+        throw error;
+      }
+
+      // 로컬 상태 업데이트
+      currentWords.value = currentWords.value.filter(w => w.id !== id);
+      
+      console.log('✅ Word deleted successfully');
+      return true;
+    } catch (error) {
+      console.error('💥 Error in deleteWord:', error);
+      throw error;
+    }
+  };
+
+  // 책 추가 (데이터베이스에 저장)
+  const addBook = async (book: Omit<Book, 'id'>) => {
+    try {
+      console.log('➕ Adding book to database:', book.title);
+      
+      // 먼저 책 정보 삽입
+      const { data: bookData, error: bookError } = await supabase
+        .from('books')
+        .insert({
+          title: book.title,
+          cover_image: book.coverImage,
+          min_age: book.minAge || 3,
+          max_age: book.maxAge || 6,
+          owner_type: 'global', // 관리자가 추가하는 것은 공용으로 설정
+          owner_id: null
+        })
+        .select()
+        .single();
+
+      if (bookError) {
+        console.error('❌ Error adding book:', bookError);
+        throw bookError;
+      }
+
+      // 책 페이지들 삽입
+      const pagesData = book.pages.map((page, index) => ({
+        book_id: bookData.id,
+        page_number: index + 1,
+        image_url: page.imageUrl,
+        audio_url: page.audioUrl,
+        text_content: page.textContent || null
+      }));
+
+      const { data: pagesResult, error: pagesError } = await supabase
+        .from('book_pages')
+        .insert(pagesData)
+        .select();
+
+      if (pagesError) {
+        console.error('❌ Error adding book pages:', pagesError);
+        // 책 삭제 후 에러 던지기
+        await supabase.from('books').delete().eq('id', bookData.id);
+        throw pagesError;
+      }
+
+      // 로컬 상태 업데이트
+      const newBook = transformBookFromDB({
+        ...bookData,
+        book_pages: pagesResult
+      });
+      currentBooks.value.unshift(newBook);
+      
+      console.log('✅ Book added successfully:', newBook.title);
+      return newBook;
+    } catch (error) {
+      console.error('💥 Error in addBook:', error);
+      throw error;
+    }
+  };
+
+  // 책 수정
+  const updateBook = async (id: string, updates: Partial<Book>) => {
+    try {
+      console.log('📝 Updating book in database:', id);
+      
+      const dbUpdates: any = { updated_at: new Date().toISOString() };
+      if (updates.title) dbUpdates.title = updates.title;
+      if (updates.coverImage) dbUpdates.cover_image = updates.coverImage;
+      if (updates.minAge) dbUpdates.min_age = updates.minAge;
+      if (updates.maxAge) dbUpdates.max_age = updates.maxAge;
+
+      const { data, error } = await supabase
+        .from('books')
+        .update(dbUpdates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ Error updating book:', error);
+        throw error;
+      }
+
+      // 페이지 업데이트 (필요한 경우)
+      if (updates.pages) {
+        // 기존 페이지 삭제
+        await supabase
+          .from('book_pages')
+          .delete()
+          .eq('book_id', id);
+
+        // 새 페이지 삽입
+        const pagesData = updates.pages.map((page, index) => ({
+          book_id: id,
+          page_number: index + 1,
+          image_url: page.imageUrl,
+          audio_url: page.audioUrl,
+          text_content: page.textContent || null
+        }));
+
+        const { data: pagesResult, error: pagesError } = await supabase
+          .from('book_pages')
+          .insert(pagesData)
+          .select();
+
+        if (pagesError) {
+          console.error('❌ Error updating book pages:', pagesError);
+          throw pagesError;
+        }
+
+        // 로컬 상태 업데이트
+        const updatedBook = transformBookFromDB({
+          ...data,
+          book_pages: pagesResult
+        });
+
+        const index = currentBooks.value.findIndex(b => b.id === id);
+        if (index !== -1) {
+          currentBooks.value[index] = updatedBook;
+        }
+
+        return updatedBook;
+      } else {
+        // 페이지 업데이트 없이 책 정보만 업데이트
+        const index = currentBooks.value.findIndex(b => b.id === id);
+        if (index !== -1) {
+          currentBooks.value[index] = { ...currentBooks.value[index], ...updates };
+        }
+      }
+      
+      console.log('✅ Book updated successfully');
+      return currentBooks.value.find(b => b.id === id);
+    } catch (error) {
+      console.error('💥 Error in updateBook:', error);
+      throw error;
+    }
+  };
+
+  // 책 삭제
+  const deleteBook = async (id: string) => {
+    try {
+      console.log('🗑️ Deleting book from database:', id);
+      
+      // 책 페이지들이 CASCADE로 자동 삭제됨
+      const { error } = await supabase
+        .from('books')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('❌ Error deleting book:', error);
+        throw error;
+      }
+
+      // 로컬 상태 업데이트
+      currentBooks.value = currentBooks.value.filter(b => b.id !== id);
+      
+      console.log('✅ Book deleted successfully');
+      return true;
+    } catch (error) {
+      console.error('💥 Error in deleteBook:', error);
+      throw error;
+    }
+  };
+
+  // 데이터 변환 함수들
+  const transformWordFromDB = (dbWord: any): WordItem => ({
+    id: dbWord.id,
+    name: dbWord.name,
+    nameEn: dbWord.name_en,
+    imageUrl: dbWord.image_url,
+    audioKo: dbWord.audio_ko,
+    audioEn: dbWord.audio_en,
+    category: dbWord.category,
+    minAge: dbWord.min_age,
+    maxAge: dbWord.max_age,
+    ownerType: dbWord.owner_type,
+    ownerId: dbWord.owner_id,
+    createdAt: dbWord.created_at,
+    updatedAt: dbWord.updated_at
+  });
+
+  const transformBookFromDB = (dbBook: any): Book => ({
+    id: dbBook.id,
+    title: dbBook.title,
+    coverImage: dbBook.cover_image,
+    minAge: dbBook.min_age,
+    maxAge: dbBook.max_age,
+    ownerType: dbBook.owner_type,
+    ownerId: dbBook.owner_id,
+    pages: (dbBook.book_pages || [])
+      .sort((a: any, b: any) => a.page_number - b.page_number)
+      .map((page: any) => ({
+        id: page.id,
+        bookId: page.book_id,
+        pageNumber: page.page_number,
+        imageUrl: page.image_url,
+        audioUrl: page.audio_url,
+        textContent: page.text_content
+      })),
+    createdAt: dbBook.created_at,
+    updatedAt: dbBook.updated_at
+  });
 
   const incrementQuizScore = () => {
     quizScore.value++;
@@ -301,6 +532,10 @@ export const useAppStore = defineStore('app', () => {
         adminToken.value = data.token;
         isAdminLoggedIn.value = true;
         localStorage.setItem('adminToken', data.token);
+        
+        // 관리자 로그인 후 데이터 로드
+        await loadAllData();
+        
         return true;
       } else {
         return false;
@@ -348,6 +583,10 @@ export const useAppStore = defineStore('app', () => {
       if (response.ok) {
         adminToken.value = token;
         isAdminLoggedIn.value = true;
+        
+        // 토큰 검증 후 데이터 로드
+        await loadAllData();
+        
         return true;
       } else {
         localStorage.removeItem('adminToken');
@@ -449,6 +688,10 @@ export const useAppStore = defineStore('app', () => {
     
     // Actions
     setLanguage,
+    loadAllData,
+    loadWords,
+    loadBooks,
+    loadBadges,
     addWord,
     updateWord,
     deleteWord,

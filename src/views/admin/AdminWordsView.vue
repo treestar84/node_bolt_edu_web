@@ -24,6 +24,7 @@
               <div class="header-cell">이미지</div>
               <div class="header-cell">단어</div>
               <div class="header-cell">카테고리</div>
+              <div class="header-cell">나이</div>
               <div class="header-cell">작업</div>
             </div>
             
@@ -43,6 +44,9 @@
               </div>
               <div class="cell category-cell">
                 <span class="category-tag">{{ getCategoryName(word.category) }}</span>
+              </div>
+              <div class="cell age-cell">
+                <span class="age-range">{{ word.minAge }}-{{ word.maxAge }}세</span>
               </div>
               <div class="cell actions-cell">
                 <button @click="editWord(word)" class="btn btn-sm btn-secondary">
@@ -124,26 +128,50 @@
             </div>
           </div>
 
-          <div class="form-group">
-            <label class="form-label">카테고리</label>
-            <select v-model="formData.category" class="form-input" required>
-              <option value="">카테고리 선택</option>
-              <option value="animals">동물</option>
-              <option value="fruits">과일</option>
-              <option value="vehicles">탈것</option>
-              <option value="objects">사물</option>
-              <option value="nature">자연</option>
-              <option value="toys">장난감</option>
-              <option value="clothes">옷</option>
-            </select>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">카테고리</label>
+              <select v-model="formData.category" class="form-input" required>
+                <option value="">카테고리 선택</option>
+                <option value="animals">동물</option>
+                <option value="fruits">과일</option>
+                <option value="vehicles">탈것</option>
+                <option value="objects">사물</option>
+                <option value="nature">자연</option>
+                <option value="toys">장난감</option>
+                <option value="clothes">옷</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">적정 나이</label>
+              <div class="age-inputs">
+                <select v-model.number="formData.minAge" class="form-input" required>
+                  <option value="3">3세</option>
+                  <option value="4">4세</option>
+                  <option value="5">5세</option>
+                  <option value="6">6세</option>
+                </select>
+                <span class="age-separator">~</span>
+                <select v-model.number="formData.maxAge" class="form-input" required>
+                  <option value="3">3세</option>
+                  <option value="4">4세</option>
+                  <option value="5">5세</option>
+                  <option value="6">6세</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="error" class="error-message">
+            {{ error }}
           </div>
 
           <div class="modal-actions">
             <button type="button" @click="closeModals" class="btn btn-secondary">
               취소
             </button>
-            <button type="submit" class="btn btn-primary">
-              {{ showAddModal ? '추가' : '수정' }}
+            <button type="submit" class="btn btn-primary" :disabled="isLoading">
+              {{ isLoading ? '저장 중...' : (showAddModal ? '추가' : '수정') }}
             </button>
           </div>
         </form>
@@ -167,8 +195,8 @@
           <button @click="showDeleteModal = false" class="btn btn-secondary">
             취소
           </button>
-          <button @click="confirmDelete" class="btn btn-danger">
-            삭제
+          <button @click="confirmDelete" class="btn btn-danger" :disabled="isLoading">
+            {{ isLoading ? '삭제 중...' : '삭제' }}
           </button>
         </div>
       </div>
@@ -177,7 +205,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue';
+import { ref, reactive, onMounted } from 'vue';
 import AdminHeader from '@/components/AdminHeader.vue';
 import FileUploadInput from '@/components/FileUploadInput.vue';
 import { useAppStore } from '@/stores/app';
@@ -192,6 +220,8 @@ const showEditModal = ref(false);
 const showDeleteModal = ref(false);
 const editingWord = ref<WordItem | null>(null);
 const wordToDelete = ref<WordItem | null>(null);
+const isLoading = ref(false);
+const error = ref('');
 
 const formData = reactive({
   name: '',
@@ -199,7 +229,9 @@ const formData = reactive({
   imageUrl: '',
   audioKo: '',
   audioEn: '',
-  category: ''
+  category: '',
+  minAge: 3,
+  maxAge: 6
 });
 
 const getCategoryName = (category: string) => {
@@ -229,6 +261,9 @@ const resetForm = () => {
   formData.audioKo = '';
   formData.audioEn = '';
   formData.category = '';
+  formData.minAge = 3;
+  formData.maxAge = 6;
+  error.value = '';
 };
 
 const closeModals = () => {
@@ -246,31 +281,56 @@ const editWord = (word: WordItem) => {
   formData.audioKo = word.audioKo;
   formData.audioEn = word.audioEn;
   formData.category = word.category;
+  formData.minAge = word.minAge;
+  formData.maxAge = word.maxAge;
   showEditModal.value = true;
 };
 
-const saveWord = () => {
-  if (showAddModal.value) {
-    store.addWord({
-      name: formData.name,
-      nameEn: formData.nameEn,
-      imageUrl: formData.imageUrl,
-      audioKo: formData.audioKo,
-      audioEn: formData.audioEn,
-      category: formData.category
-    });
-  } else if (showEditModal.value && editingWord.value) {
-    store.updateWord(editingWord.value.id, {
-      name: formData.name,
-      nameEn: formData.nameEn,
-      imageUrl: formData.imageUrl,
-      audioKo: formData.audioKo,
-      audioEn: formData.audioEn,
-      category: formData.category
-    });
+const saveWord = async () => {
+  if (formData.minAge > formData.maxAge) {
+    error.value = '최소 나이는 최대 나이보다 작거나 같아야 합니다.';
+    return;
   }
-  
-  closeModals();
+
+  isLoading.value = true;
+  error.value = '';
+
+  try {
+    if (showAddModal.value) {
+      await store.addWord({
+        name: formData.name,
+        nameEn: formData.nameEn,
+        imageUrl: formData.imageUrl,
+        audioKo: formData.audioKo,
+        audioEn: formData.audioEn,
+        category: formData.category,
+        minAge: formData.minAge,
+        maxAge: formData.maxAge,
+        ownerType: 'global',
+        ownerId: undefined
+      });
+      console.log('✅ Word added successfully');
+    } else if (showEditModal.value && editingWord.value) {
+      await store.updateWord(editingWord.value.id, {
+        name: formData.name,
+        nameEn: formData.nameEn,
+        imageUrl: formData.imageUrl,
+        audioKo: formData.audioKo,
+        audioEn: formData.audioEn,
+        category: formData.category,
+        minAge: formData.minAge,
+        maxAge: formData.maxAge
+      });
+      console.log('✅ Word updated successfully');
+    }
+    
+    closeModals();
+  } catch (err: any) {
+    console.error('❌ Error saving word:', err);
+    error.value = err.message || '저장 중 오류가 발생했습니다.';
+  } finally {
+    isLoading.value = false;
+  }
 };
 
 const deleteWordConfirm = (word: WordItem) => {
@@ -278,13 +338,29 @@ const deleteWordConfirm = (word: WordItem) => {
   showDeleteModal.value = true;
 };
 
-const confirmDelete = () => {
-  if (wordToDelete.value) {
-    store.deleteWord(wordToDelete.value.id);
+const confirmDelete = async () => {
+  if (!wordToDelete.value) return;
+
+  isLoading.value = true;
+  
+  try {
+    await store.deleteWord(wordToDelete.value.id);
+    console.log('✅ Word deleted successfully');
     showDeleteModal.value = false;
     wordToDelete.value = null;
+  } catch (err: any) {
+    console.error('❌ Error deleting word:', err);
+    error.value = err.message || '삭제 중 오류가 발생했습니다.';
+  } finally {
+    isLoading.value = false;
   }
 };
+
+onMounted(async () => {
+  // 페이지 로드 시 최신 데이터 가져오기
+  console.log('🔄 Loading words data...');
+  await store.loadWords();
+});
 </script>
 
 <style scoped>
@@ -344,7 +420,7 @@ const confirmDelete = () => {
 
 .table-header {
   display: grid;
-  grid-template-columns: 100px 1fr 150px 200px;
+  grid-template-columns: 100px 1fr 150px 100px 200px;
   gap: var(--spacing-md);
   padding: var(--spacing-lg);
   background: var(--color-bg-secondary);
@@ -361,7 +437,7 @@ const confirmDelete = () => {
 
 .table-row {
   display: grid;
-  grid-template-columns: 100px 1fr 150px 200px;
+  grid-template-columns: 100px 1fr 150px 100px 200px;
   gap: var(--spacing-md);
   padding: var(--spacing-lg);
   border-bottom: 1px solid var(--color-border);
@@ -415,6 +491,15 @@ const confirmDelete = () => {
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.age-range {
+  background: var(--color-primary);
+  color: white;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 500;
 }
 
 .actions-cell {
@@ -493,6 +578,28 @@ const confirmDelete = () => {
   gap: var(--spacing-lg);
 }
 
+.age-inputs {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.age-separator {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.error-message {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid var(--color-danger);
+  color: var(--color-danger);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-lg);
+  text-align: center;
+  font-weight: 500;
+}
+
 .modal-actions {
   display: flex;
   justify-content: flex-end;
@@ -548,20 +655,6 @@ const confirmDelete = () => {
     justify-content: space-between;
     padding: var(--spacing-sm) 0;
   }
-  
-  .cell::before {
-    content: attr(data-label);
-    font-weight: 600;
-    color: var(--color-text-secondary);
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-  
-  .image-cell::before { content: '이미지'; }
-  .word-cell::before { content: '단어'; }
-  .category-cell::before { content: '카테고리'; }
-  .actions-cell::before { content: '작업'; }
   
   .form-row {
     grid-template-columns: 1fr;

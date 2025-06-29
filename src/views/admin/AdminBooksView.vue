@@ -25,6 +25,7 @@
               <h3 class="book-title">{{ book.title }}</h3>
               <div class="book-meta">
                 <span class="page-count">{{ book.pages.length }}장</span>
+                <span class="age-range">{{ book.minAge }}-{{ book.maxAge }}세</span>
               </div>
               <div class="book-actions">
                 <button @click="editBook(book)" class="btn btn-sm btn-secondary">
@@ -71,15 +72,34 @@
               </div>
 
               <div class="form-group">
-                <label class="form-label">표지 이미지</label>
-                <FileUploadInput
-                  v-model="formData.coverImage"
-                  label="표지 이미지"
-                  placeholder="https://example.com/cover.jpg"
-                  file-type="image"
-                  :required="true"
-                />
+                <label class="form-label">적정 나이</label>
+                <div class="age-inputs">
+                  <select v-model.number="formData.minAge" class="form-input" required>
+                    <option value="3">3세</option>
+                    <option value="4">4세</option>
+                    <option value="5">5세</option>
+                    <option value="6">6세</option>
+                  </select>
+                  <span class="age-separator">~</span>
+                  <select v-model.number="formData.maxAge" class="form-input" required>
+                    <option value="3">3세</option>
+                    <option value="4">4세</option>
+                    <option value="5">5세</option>
+                    <option value="6">6세</option>
+                  </select>
+                </div>
               </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">표지 이미지</label>
+              <FileUploadInput
+                v-model="formData.coverImage"
+                label="표지 이미지"
+                placeholder="https://example.com/cover.jpg"
+                file-type="image"
+                :required="true"
+              />
             </div>
           </div>
 
@@ -109,7 +129,7 @@
                   <div class="form-group">
                     <label class="form-label">음성</label>
                     <FileUploadInput
-                      v-model="page.audio"
+                      v-model="page.audioUrl"
                       label="페이지 음성"
                       placeholder="/audio/book1-page1.mp3"
                       file-type="audio"
@@ -120,7 +140,7 @@
                   <div class="form-group">
                     <label class="form-label">텍스트 (선택사항)</label>
                     <textarea 
-                      v-model="page.text" 
+                      v-model="page.textContent" 
                       class="form-input textarea"
                       placeholder="예: 귀여운 고양이가 있어요"
                       rows="3"
@@ -131,12 +151,16 @@
             </div>
           </div>
 
+          <div v-if="error" class="error-message">
+            {{ error }}
+          </div>
+
           <div class="modal-actions">
             <button type="button" @click="closeModals" class="btn btn-secondary">
               취소
             </button>
-            <button type="submit" class="btn btn-primary">
-              {{ showAddModal ? '추가' : '수정' }}
+            <button type="submit" class="btn btn-primary" :disabled="isLoading">
+              {{ isLoading ? '저장 중...' : (showAddModal ? '추가' : '수정') }}
             </button>
           </div>
         </form>
@@ -160,8 +184,8 @@
           <button @click="showDeleteModal = false" class="btn btn-secondary">
             취소
           </button>
-          <button @click="confirmDelete" class="btn btn-danger">
-            삭제
+          <button @click="confirmDelete" class="btn btn-danger" :disabled="isLoading">
+            {{ isLoading ? '삭제 중...' : '삭제' }}
           </button>
         </div>
       </div>
@@ -170,7 +194,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue';
+import { ref, reactive, onMounted } from 'vue';
 import AdminHeader from '@/components/AdminHeader.vue';
 import FileUploadInput from '@/components/FileUploadInput.vue';
 import { useAppStore } from '@/stores/app';
@@ -185,16 +209,20 @@ const showEditModal = ref(false);
 const showDeleteModal = ref(false);
 const editingBook = ref<Book | null>(null);
 const bookToDelete = ref<Book | null>(null);
+const isLoading = ref(false);
+const error = ref('');
 
-const createEmptyPage = (): Omit<BookPage, 'id'> => ({
+const createEmptyPage = () => ({
   imageUrl: '',
-  audio: '',
-  text: ''
+  audioUrl: '',
+  textContent: ''
 });
 
 const formData = reactive({
   title: '',
   coverImage: '',
+  minAge: 3,
+  maxAge: 6,
   pages: [
     createEmptyPage(),
     createEmptyPage(),
@@ -213,12 +241,15 @@ const getImageUrl = (url: string): string => {
 const resetForm = () => {
   formData.title = '';
   formData.coverImage = '';
+  formData.minAge = 3;
+  formData.maxAge = 6;
   formData.pages = [
     createEmptyPage(),
     createEmptyPage(),
     createEmptyPage(),
     createEmptyPage()
   ];
+  error.value = '';
 };
 
 const closeModals = () => {
@@ -232,12 +263,14 @@ const editBook = (book: Book) => {
   editingBook.value = book;
   formData.title = book.title;
   formData.coverImage = book.coverImage;
+  formData.minAge = book.minAge;
+  formData.maxAge = book.maxAge;
   
   // Fill pages data
   formData.pages = book.pages.map(page => ({
     imageUrl: page.imageUrl,
-    audio: page.audio,
-    text: page.text || ''
+    audioUrl: page.audioUrl,
+    textContent: page.textContent || ''
   }));
   
   // Ensure we have exactly 4 pages
@@ -248,29 +281,63 @@ const editBook = (book: Book) => {
   showEditModal.value = true;
 };
 
-const saveBook = () => {
-  const pages: BookPage[] = formData.pages.map((page, index) => ({
-    id: `${Date.now()}-${index}`,
-    imageUrl: page.imageUrl,
-    audio: page.audio,
-    text: page.text || undefined
-  }));
-
-  if (showAddModal.value) {
-    store.addBook({
-      title: formData.title,
-      coverImage: formData.coverImage,
-      pages
-    });
-  } else if (showEditModal.value && editingBook.value) {
-    store.updateBook(editingBook.value.id, {
-      title: formData.title,
-      coverImage: formData.coverImage,
-      pages
-    });
+const saveBook = async () => {
+  if (formData.minAge > formData.maxAge) {
+    error.value = '최소 나이는 최대 나이보다 작거나 같아야 합니다.';
+    return;
   }
-  
-  closeModals();
+
+  // Validate all pages have required fields
+  for (let i = 0; i < formData.pages.length; i++) {
+    const page = formData.pages[i];
+    if (!page.imageUrl || !page.audioUrl) {
+      error.value = `${i + 1}장의 이미지와 음성은 필수입니다.`;
+      return;
+    }
+  }
+
+  isLoading.value = true;
+  error.value = '';
+
+  try {
+    const pages: BookPage[] = formData.pages.map((page, index) => ({
+      id: `${Date.now()}-${index}`,
+      bookId: '', // Will be set by the store
+      pageNumber: index + 1,
+      imageUrl: page.imageUrl,
+      audioUrl: page.audioUrl,
+      textContent: page.textContent || undefined
+    }));
+
+    if (showAddModal.value) {
+      await store.addBook({
+        title: formData.title,
+        coverImage: formData.coverImage,
+        minAge: formData.minAge,
+        maxAge: formData.maxAge,
+        ownerType: 'global',
+        ownerId: undefined,
+        pages
+      });
+      console.log('✅ Book added successfully');
+    } else if (showEditModal.value && editingBook.value) {
+      await store.updateBook(editingBook.value.id, {
+        title: formData.title,
+        coverImage: formData.coverImage,
+        minAge: formData.minAge,
+        maxAge: formData.maxAge,
+        pages
+      });
+      console.log('✅ Book updated successfully');
+    }
+    
+    closeModals();
+  } catch (err: any) {
+    console.error('❌ Error saving book:', err);
+    error.value = err.message || '저장 중 오류가 발생했습니다.';
+  } finally {
+    isLoading.value = false;
+  }
 };
 
 const deleteBookConfirm = (book: Book) => {
@@ -278,13 +345,29 @@ const deleteBookConfirm = (book: Book) => {
   showDeleteModal.value = true;
 };
 
-const confirmDelete = () => {
-  if (bookToDelete.value) {
-    store.deleteBook(bookToDelete.value.id);
+const confirmDelete = async () => {
+  if (!bookToDelete.value) return;
+
+  isLoading.value = true;
+  
+  try {
+    await store.deleteBook(bookToDelete.value.id);
+    console.log('✅ Book deleted successfully');
     showDeleteModal.value = false;
     bookToDelete.value = null;
+  } catch (err: any) {
+    console.error('❌ Error deleting book:', err);
+    error.value = err.message || '삭제 중 오류가 발생했습니다.';
+  } finally {
+    isLoading.value = false;
   }
 };
+
+onMounted(async () => {
+  // 페이지 로드 시 최신 데이터 가져오기
+  console.log('🔄 Loading books data...');
+  await store.loadBooks();
+});
 </script>
 
 <style scoped>
@@ -355,11 +438,22 @@ const confirmDelete = () => {
 
 .book-meta {
   margin-bottom: var(--spacing-lg);
+  display: flex;
+  gap: var(--spacing-sm);
 }
 
 .page-count {
   background: var(--color-bg-secondary);
   color: var(--color-text-secondary);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.age-range {
+  background: var(--color-primary);
+  color: white;
   padding: var(--spacing-xs) var(--spacing-sm);
   border-radius: var(--radius-sm);
   font-size: 0.75rem;
@@ -481,6 +575,17 @@ const confirmDelete = () => {
   gap: var(--spacing-lg);
 }
 
+.age-inputs {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.age-separator {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
 .pages-section {
   margin-bottom: var(--spacing-2xl);
 }
@@ -522,6 +627,17 @@ const confirmDelete = () => {
 .textarea {
   resize: vertical;
   min-height: 80px;
+}
+
+.error-message {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid var(--color-danger);
+  color: var(--color-danger);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-lg);
+  text-align: center;
+  font-weight: 500;
 }
 
 .modal-actions {

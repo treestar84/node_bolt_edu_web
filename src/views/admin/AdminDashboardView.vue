@@ -138,12 +138,41 @@
             </div>
           </div>
         </div>
+
+        <!-- 데이터베이스 연결 상태 표시 -->
+        <div class="database-status">
+          <h2 class="section-title">시스템 상태</h2>
+          <div class="status-grid">
+            <div class="status-card">
+              <div class="status-icon">💾</div>
+              <div class="status-content">
+                <div class="status-label">데이터베이스</div>
+                <div class="status-value connected">연결됨</div>
+              </div>
+            </div>
+            <div class="status-card">
+              <div class="status-icon">🔄</div>
+              <div class="status-content">
+                <div class="status-label">데이터 동기화</div>
+                <div class="status-value">실시간</div>
+              </div>
+            </div>
+            <div class="status-card">
+              <div class="status-icon">💿</div>
+              <div class="status-content">
+                <div class="status-label">저장 방식</div>
+                <div class="status-value">Supabase DB</div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </main>
   </div>
 </template>
 
 <script setup lang="ts">
+import { onMounted } from 'vue';
 import AdminHeader from '@/components/AdminHeader.vue';
 import { useAppStore } from '@/stores/app';
 
@@ -161,6 +190,12 @@ const getCategoryName = (category: string) => {
   };
   return categoryNames[category] || category;
 };
+
+onMounted(async () => {
+  // 관리자 대시보드 로드 시 최신 데이터 가져오기
+  console.log('🔄 Loading admin dashboard data...');
+  await store.loadAllData();
+});
 </script>
 
 <style scoped>
@@ -353,6 +388,7 @@ const getCategoryName = (category: string) => {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--spacing-2xl);
+  margin-bottom: var(--spacing-3xl);
 }
 
 .badge-stats {
@@ -424,6 +460,52 @@ const getCategoryName = (category: string) => {
   padding: var(--spacing-lg);
 }
 
+.database-status {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-2xl);
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-lg);
+}
+
+.status-card {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-lg);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+}
+
+.status-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.status-content {
+  flex: 1;
+}
+
+.status-label {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.status-value {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.status-value.connected {
+  color: var(--color-success);
+}
+
 @media (max-width: 768px) {
   .stats-grid {
     grid-template-columns: 1fr;
@@ -464,6 +546,11 @@ const getCategoryName = (category: string) => {
   .badge-stats {
     grid-template-columns: 1fr;
     gap: var(--spacing-lg);
+  }
+  
+  .status-grid {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-md);
   }
 }
 </style>
