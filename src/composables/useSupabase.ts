@@ -98,12 +98,12 @@ export function useSupabase() {
             
             console.log('👤 Creating user profile...');
             
-            // Create user profile with detailed logging
+            // Create user profile with detailed logging - FIXED: use snake_case for database
             const profileData = {
               user_id: data.user.id,
               username,
               user_type: userType,
-              child_age: childAge,
+              child_age: childAge, // FIXED: Use snake_case for database
               site_name: '유아학습'
             };
             
@@ -347,7 +347,7 @@ export function useSupabase() {
       }
     },
 
-    // Profile helpers
+    // Profile helpers - FIXED: Transform between camelCase and snake_case
     async getUserProfile(userId: string) {
       console.log('👤 Getting user profile for:', userId);
       const { data, error } = await supabase
@@ -360,15 +360,40 @@ export function useSupabase() {
         console.error('❌ Get profile error:', error);
         throw error;
       }
-      console.log('✅ Profile retrieved:', data);
-      return data;
+      
+      // Transform snake_case to camelCase for frontend
+      const transformedData = {
+        id: data.id,
+        userId: data.user_id,
+        username: data.username,
+        userType: data.user_type,
+        siteName: data.site_name,
+        mainImageUrl: data.main_image_url,
+        childAge: data.child_age, // FIXED: Transform from snake_case
+        createdAt: data.created_at,
+        updatedAt: data.updated_at
+      };
+      
+      console.log('✅ Profile retrieved and transformed:', transformedData);
+      return transformedData;
     },
 
     async updateUserProfile(userId: string, updates: Partial<any>) {
       console.log('📝 Updating user profile for:', userId, updates);
+      
+      // Transform camelCase to snake_case for database
+      const dbUpdates: any = { updated_at: new Date().toISOString() };
+      
+      if (updates.userType) dbUpdates.user_type = updates.userType;
+      if (updates.siteName) dbUpdates.site_name = updates.siteName;
+      if (updates.mainImageUrl !== undefined) dbUpdates.main_image_url = updates.mainImageUrl;
+      if (updates.childAge) dbUpdates.child_age = updates.childAge; // FIXED: Transform to snake_case
+      
+      console.log('📝 Database updates (snake_case):', dbUpdates);
+      
       const { data, error } = await supabase
         .from('user_profiles')
-        .update({ ...updates, updated_at: new Date().toISOString() })
+        .update(dbUpdates)
         .eq('user_id', userId)
         .select()
         .single();
@@ -377,8 +402,22 @@ export function useSupabase() {
         console.error('❌ Update profile error:', error);
         throw error;
       }
-      console.log('✅ Profile updated:', data);
-      return data;
+      
+      // Transform back to camelCase for frontend
+      const transformedData = {
+        id: data.id,
+        userId: data.user_id,
+        username: data.username,
+        userType: data.user_type,
+        siteName: data.site_name,
+        mainImageUrl: data.main_image_url,
+        childAge: data.child_age, // FIXED: Transform from snake_case
+        createdAt: data.created_at,
+        updatedAt: data.updated_at
+      };
+      
+      console.log('✅ Profile updated and transformed:', transformedData);
+      return transformedData;
     },
 
     // Words helpers

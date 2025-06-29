@@ -9,7 +9,7 @@ export interface Database {
           user_type: 'teacher' | 'director' | 'parent';
           site_name: string;
           main_image_url: string | null;
-          child_age: number;
+          child_age: number; // FIXED: Use snake_case to match database
           created_at: string;
           updated_at: string;
         };
@@ -20,7 +20,7 @@ export interface Database {
           user_type: 'teacher' | 'director' | 'parent';
           site_name?: string;
           main_image_url?: string | null;
-          child_age?: number;
+          child_age?: number; // FIXED: Use snake_case to match database
           created_at?: string;
           updated_at?: string;
         };
@@ -31,7 +31,7 @@ export interface Database {
           user_type?: 'teacher' | 'director' | 'parent';
           site_name?: string;
           main_image_url?: string | null;
-          child_age?: number;
+          child_age?: number; // FIXED: Use snake_case to match database
           created_at?: string;
           updated_at?: string;
         };
