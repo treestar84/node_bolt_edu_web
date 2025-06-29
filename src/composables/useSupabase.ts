@@ -16,59 +16,78 @@ export function useSupabase() {
     
     // Auth helpers - Modified for username login
     async signUp(username: string, password: string, userType: string, childAge: number) {
-      // Create a fake email from username for Supabase
-      const email = `${username}@local.app`;
-      
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-      });
+      try {
+        // Create a fake email from username for Supabase
+        const email = `${username}@local.app`;
+        
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+        });
 
-      if (error) throw error;
+        if (error) throw error;
 
-      if (data.user) {
-        // Create user profile with actual username
-        const { error: profileError } = await supabase
-          .from('user_profiles')
-          .insert({
-            user_id: data.user.id,
-            username,
-            user_type: userType,
-            child_age: childAge,
-            site_name: '유아학습'
-          });
+        if (data.user) {
+          // Wait a bit for the user to be fully created
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Create user profile with actual username
+          const { error: profileError } = await supabase
+            .from('user_profiles')
+            .insert({
+              user_id: data.user.id,
+              username,
+              user_type: userType,
+              child_age: childAge,
+              site_name: '유아학습'
+            });
 
-        if (profileError) throw profileError;
+          if (profileError) {
+            console.error('Profile creation error:', profileError);
+            throw new Error(`프로필 생성 실패: ${profileError.message}`);
+          }
 
-        // Initialize user progress
-        const { error: progressError } = await supabase
-          .from('user_progress')
-          .insert({
-            user_id: data.user.id,
-            quiz_score: 0,
-            quiz_streak: 0,
-            puzzle_completions: 0,
-            words_learned: 0,
-            books_read: 0
-          });
+          // Initialize user progress
+          const { error: progressError } = await supabase
+            .from('user_progress')
+            .insert({
+              user_id: data.user.id,
+              quiz_score: 0,
+              quiz_streak: 0,
+              puzzle_completions: 0,
+              words_learned: 0,
+              books_read: 0
+            });
 
-        if (progressError) throw progressError;
+          if (progressError) {
+            console.error('Progress creation error:', progressError);
+            // Don't throw error for progress, it's not critical
+          }
+        }
+
+        return data;
+      } catch (error) {
+        console.error('SignUp error:', error);
+        throw error;
       }
-
-      return data;
     },
 
     async signIn(username: string, password: string) {
-      // Convert username to email format for Supabase
-      const email = `${username}@local.app`;
-      
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      try {
+        // Convert username to email format for Supabase
+        const email = `${username}@local.app`;
+        
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
 
-      if (error) throw error;
-      return data;
+        if (error) throw error;
+        return data;
+      } catch (error) {
+        console.error('SignIn error:', error);
+        throw error;
+      }
     },
 
     async signOut() {
@@ -83,14 +102,23 @@ export function useSupabase() {
 
     // Check if username exists
     async checkUsernameExists(username: string) {
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('username')
-        .eq('username', username)
-        .single();
+      try {
+        const { data, error } = await supabase
+          .from('user_profiles')
+          .select('username')
+          .eq('username', username)
+          .single();
 
-      if (error && error.code !== 'PGRST116') throw error;
-      return !!data;
+        if (error && error.code !== 'PGRST116') {
+          console.error('Username check error:', error);
+          return false; // Assume username doesn't exist if we can't check
+        }
+        
+        return !!data;
+      } catch (error) {
+        console.error('Username check error:', error);
+        return false;
+      }
     },
 
     // Profile helpers
@@ -171,7 +199,7 @@ export function useSupabase() {
         .eq('user_id', userId)
         .single();
 
-      if (error) throw error;
+      if (error && error.code !== 'PGRST116') throw error;
       return data;
     },
 

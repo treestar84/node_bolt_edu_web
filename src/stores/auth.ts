@@ -40,13 +40,52 @@ export const useAuthStore = defineStore('auth', () => {
     if (!user.value) return;
 
     try {
-      const [profile, progress] = await Promise.all([
-        getUserProfile(user.value.id),
-        supabase.from('user_progress').select('*').eq('user_id', user.value.id).single()
-      ]);
-
+      const profile = await getUserProfile(user.value.id);
       userProfile.value = profile;
-      userProgress.value = progress.data;
+
+      // Load progress separately with error handling
+      try {
+        const progressResult = await supabase
+          .from('user_progress')
+          .select('*')
+          .eq('user_id', user.value.id)
+          .single();
+        
+        if (progressResult.data) {
+          userProgress.value = progressResult.data;
+        } else {
+          // Create initial progress if it doesn't exist
+          const { data: newProgress } = await supabase
+            .from('user_progress')
+            .insert({
+              user_id: user.value.id,
+              quiz_score: 0,
+              quiz_streak: 0,
+              puzzle_completions: 0,
+              words_learned: 0,
+              books_read: 0
+            })
+            .select()
+            .single();
+          
+          if (newProgress) {
+            userProgress.value = newProgress;
+          }
+        }
+      } catch (progressError) {
+        console.error('Error loading user progress:', progressError);
+        // Initialize default progress
+        userProgress.value = {
+          id: '',
+          userId: user.value.id,
+          quizScore: 0,
+          quizStreak: 0,
+          puzzleCompletions: 0,
+          wordsLearned: 0,
+          booksRead: 0,
+          updatedAt: new Date().toISOString()
+        };
+      }
     } catch (err: any) {
       console.error('Error loading user profile:', err);
       error.value = err.message;
@@ -64,16 +103,22 @@ export const useAuthStore = defineStore('auth', () => {
       isLoading.value = true;
       error.value = '';
 
+      // Validate username format
+      if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+        error.value = '아이디는 3-20자의 영문, 숫자, 언더스코어만 사용 가능합니다.';
+        return false;
+      }
+
+      // Validate password
+      if (password.length < 6) {
+        error.value = '비밀번호는 최소 6자 이상이어야 합니다.';
+        return false;
+      }
+
       // Check if username already exists
       const usernameExists = await checkUsernameExists(username);
       if (usernameExists) {
         error.value = '이미 사용 중인 아이디입니다.';
-        return false;
-      }
-
-      // Validate username format
-      if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
-        error.value = '아이디는 3-20자의 영문, 숫자, 언더스코어만 사용 가능합니다.';
         return false;
       }
 
@@ -87,12 +132,14 @@ export const useAuthStore = defineStore('auth', () => {
       return true;
     } catch (err: any) {
       console.error('Registration error:', err);
-      if (err.message.includes('already registered')) {
+      if (err.message.includes('already registered') || err.message.includes('already been registered')) {
         error.value = '이미 사용 중인 아이디입니다.';
-      } else if (err.message.includes('Password')) {
+      } else if (err.message.includes('Password') || err.message.includes('password')) {
         error.value = '비밀번호는 최소 6자 이상이어야 합니다.';
+      } else if (err.message.includes('프로필 생성 실패')) {
+        error.value = '회원가입 중 오류가 발생했습니다. 다시 시도해주세요.';
       } else {
-        error.value = err.message;
+        error.value = err.message || '회원가입 중 오류가 발생했습니다.';
       }
       return false;
     } finally {
@@ -116,10 +163,10 @@ export const useAuthStore = defineStore('auth', () => {
       return true;
     } catch (err: any) {
       console.error('Login error:', err);
-      if (err.message.includes('Invalid login credentials')) {
+      if (err.message.includes('Invalid login credentials') || err.message.includes('invalid_credentials')) {
         error.value = '아이디 또는 비밀번호가 올바르지 않습니다.';
       } else {
-        error.value = err.message;
+        error.value = err.message || '로그인 중 오류가 발생했습니다.';
       }
       return false;
     } finally {
