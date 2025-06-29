@@ -14,8 +14,11 @@ export function useSupabase() {
   return {
     supabase,
     
-    // Auth helpers
-    async signUp(email: string, password: string, username: string, userType: string, childAge: number) {
+    // Auth helpers - Modified for username login
+    async signUp(username: string, password: string, userType: string, childAge: number) {
+      // Create a fake email from username for Supabase
+      const email = `${username}@local.app`;
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -24,7 +27,7 @@ export function useSupabase() {
       if (error) throw error;
 
       if (data.user) {
-        // Create user profile
+        // Create user profile with actual username
         const { error: profileError } = await supabase
           .from('user_profiles')
           .insert({
@@ -55,7 +58,10 @@ export function useSupabase() {
       return data;
     },
 
-    async signIn(email: string, password: string) {
+    async signIn(username: string, password: string) {
+      // Convert username to email format for Supabase
+      const email = `${username}@local.app`;
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -73,6 +79,18 @@ export function useSupabase() {
     async getCurrentUser() {
       const { data: { user } } = await supabase.auth.getUser();
       return user;
+    },
+
+    // Check if username exists
+    async checkUsernameExists(username: string) {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('username')
+        .eq('username', username)
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+      return !!data;
     },
 
     // Profile helpers

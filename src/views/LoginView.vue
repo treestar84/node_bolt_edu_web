@@ -9,15 +9,18 @@
 
         <form @submit.prevent="handleSubmit" class="login-form">
           <div class="form-group">
-            <label for="email" class="form-label">이메일</label>
+            <label for="username" class="form-label">아이디</label>
             <input
-              id="email"
-              type="email"
-              v-model="formData.email"
+              id="username"
+              type="text"
+              v-model="formData.username"
               class="form-input"
-              placeholder="이메일을 입력하세요"
+              placeholder="아이디를 입력하세요"
               required
             />
+            <div class="form-hint">
+              영문, 숫자, 언더스코어(_) 사용 가능 (3-20자)
+            </div>
           </div>
 
           <div class="form-group">
@@ -30,21 +33,12 @@
               placeholder="비밀번호를 입력하세요"
               required
             />
+            <div class="form-hint">
+              최소 6자 이상
+            </div>
           </div>
 
           <div v-if="isRegister" class="register-fields">
-            <div class="form-group">
-              <label for="username" class="form-label">사용자명</label>
-              <input
-                id="username"
-                type="text"
-                v-model="formData.username"
-                class="form-input"
-                placeholder="사용자명을 입력하세요"
-                required
-              />
-            </div>
-
             <div class="form-group">
               <label for="userType" class="form-label">사용자 유형</label>
               <select
@@ -98,6 +92,26 @@
           >
             {{ isRegister ? '이미 계정이 있으신가요? 로그인' : '계정이 없으신가요? 회원가입' }}
           </button>
+          
+          <div class="demo-accounts">
+            <h4>테스트 계정</h4>
+            <div class="demo-buttons">
+              <button 
+                @click="fillDemoAccount('parent')" 
+                class="demo-btn"
+                type="button"
+              >
+                엄마 계정
+              </button>
+              <button 
+                @click="fillDemoAccount('teacher')" 
+                class="demo-btn"
+                type="button"
+              >
+                선생님 계정
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -115,9 +129,8 @@ const authStore = useAuthStore();
 const isRegister = ref(false);
 
 const formData = reactive({
-  email: '',
-  password: '',
   username: '',
+  password: '',
   userType: '',
   childAge: 4
 });
@@ -127,14 +140,13 @@ const handleSubmit = async () => {
 
   if (isRegister.value) {
     success = await authStore.register(
-      formData.email,
-      formData.password,
       formData.username,
+      formData.password,
       formData.userType as any,
       formData.childAge
     );
   } else {
-    success = await authStore.login(formData.email, formData.password);
+    success = await authStore.login(formData.username, formData.password);
   }
 
   if (success) {
@@ -145,6 +157,32 @@ const handleSubmit = async () => {
 const toggleMode = () => {
   isRegister.value = !isRegister.value;
   authStore.error = '';
+  resetForm();
+};
+
+const resetForm = () => {
+  formData.username = '';
+  formData.password = '';
+  formData.userType = '';
+  formData.childAge = 4;
+};
+
+const fillDemoAccount = (type: 'parent' | 'teacher') => {
+  if (type === 'parent') {
+    formData.username = 'demo_mom';
+    formData.password = '123456';
+    if (isRegister.value) {
+      formData.userType = 'parent';
+      formData.childAge = 4;
+    }
+  } else {
+    formData.username = 'demo_teacher';
+    formData.password = '123456';
+    if (isRegister.value) {
+      formData.userType = 'teacher';
+      formData.childAge = 5;
+    }
+  }
 };
 </script>
 
@@ -196,6 +234,12 @@ const toggleMode = () => {
   margin-top: var(--spacing-lg);
 }
 
+.form-hint {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-top: var(--spacing-xs);
+}
+
 .error-message {
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid var(--color-danger);
@@ -220,11 +264,48 @@ const toggleMode = () => {
   font-weight: 500;
   cursor: pointer;
   transition: color 0.2s ease;
+  margin-bottom: var(--spacing-lg);
 }
 
 .toggle-button:hover {
   color: var(--color-primary-dark);
   text-decoration: underline;
+}
+
+.demo-accounts {
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  margin-top: var(--spacing-lg);
+}
+
+.demo-accounts h4 {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--spacing-md);
+  font-weight: 500;
+}
+
+.demo-buttons {
+  display: flex;
+  gap: var(--spacing-sm);
+  justify-content: center;
+}
+
+.demo-btn {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.demo-btn:hover {
+  background: var(--color-bg-hover);
+  border-color: var(--color-primary);
 }
 
 @media (max-width: 768px) {
@@ -238,6 +319,10 @@ const toggleMode = () => {
   
   .login-header h1 {
     font-size: 1.75rem;
+  }
+  
+  .demo-buttons {
+    flex-direction: column;
   }
 }
 </style>

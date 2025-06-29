@@ -19,14 +19,18 @@
             
             <form @submit.prevent="saveSettings" class="settings-form">
               <div class="form-group">
-                <label class="form-label">사용자명</label>
+                <label class="form-label">아이디</label>
                 <input 
                   v-model="formData.username" 
                   type="text" 
                   class="form-input" 
-                  placeholder="사용자명을 입력하세요"
+                  placeholder="아이디를 입력하세요"
                   required 
+                  disabled
                 />
+                <div class="form-hint">
+                  아이디는 변경할 수 없습니다
+                </div>
               </div>
 
               <div class="form-group">
@@ -205,7 +209,6 @@ const loadCurrentSettings = () => {
 
 const saveSettings = async () => {
   const success = await authStore.updateSettings({
-    username: formData.username,
     userType: formData.userType,
     siteName: formData.siteName,
     childAge: formData.childAge,
@@ -301,6 +304,12 @@ onMounted(() => {
   font-size: 0.875rem;
   color: var(--color-text-muted);
   margin-top: var(--spacing-xs);
+}
+
+.form-input:disabled {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
 }
 
 .form-actions {

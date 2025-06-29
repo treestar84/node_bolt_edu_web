@@ -4,7 +4,7 @@ import { useSupabase } from '@/composables/useSupabase';
 import type { UserProfile, UserProgress } from '@/types';
 
 export const useAuthStore = defineStore('auth', () => {
-  const { supabase, signUp, signIn, signOut, getCurrentUser, getUserProfile, updateUserProfile } = useSupabase();
+  const { supabase, signUp, signIn, signOut, getCurrentUser, getUserProfile, updateUserProfile, checkUsernameExists } = useSupabase();
   
   const user = ref<any>(null);
   const userProfile = ref<UserProfile | null>(null);
@@ -53,11 +53,10 @@ export const useAuthStore = defineStore('auth', () => {
     }
   };
 
-  // Register new user
+  // Register new user with username
   const register = async (
-    email: string, 
-    password: string, 
     username: string, 
+    password: string, 
     userType: 'teacher' | 'director' | 'parent',
     childAge: number
   ) => {
@@ -65,7 +64,20 @@ export const useAuthStore = defineStore('auth', () => {
       isLoading.value = true;
       error.value = '';
 
-      const { user: newUser } = await signUp(email, password, username, userType, childAge);
+      // Check if username already exists
+      const usernameExists = await checkUsernameExists(username);
+      if (usernameExists) {
+        error.value = '이미 사용 중인 아이디입니다.';
+        return false;
+      }
+
+      // Validate username format
+      if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+        error.value = '아이디는 3-20자의 영문, 숫자, 언더스코어만 사용 가능합니다.';
+        return false;
+      }
+
+      const { user: newUser } = await signUp(username, password, userType, childAge);
       
       if (newUser) {
         user.value = newUser;
@@ -75,20 +87,26 @@ export const useAuthStore = defineStore('auth', () => {
       return true;
     } catch (err: any) {
       console.error('Registration error:', err);
-      error.value = err.message;
+      if (err.message.includes('already registered')) {
+        error.value = '이미 사용 중인 아이디입니다.';
+      } else if (err.message.includes('Password')) {
+        error.value = '비밀번호는 최소 6자 이상이어야 합니다.';
+      } else {
+        error.value = err.message;
+      }
       return false;
     } finally {
       isLoading.value = false;
     }
   };
 
-  // Login user
-  const login = async (email: string, password: string) => {
+  // Login user with username
+  const login = async (username: string, password: string) => {
     try {
       isLoading.value = true;
       error.value = '';
 
-      const { user: loggedInUser } = await signIn(email, password);
+      const { user: loggedInUser } = await signIn(username, password);
       
       if (loggedInUser) {
         user.value = loggedInUser;
@@ -98,7 +116,11 @@ export const useAuthStore = defineStore('auth', () => {
       return true;
     } catch (err: any) {
       console.error('Login error:', err);
-      error.value = err.message;
+      if (err.message.includes('Invalid login credentials')) {
+        error.value = '아이디 또는 비밀번호가 올바르지 않습니다.';
+      } else {
+        error.value = err.message;
+      }
       return false;
     } finally {
       isLoading.value = false;
