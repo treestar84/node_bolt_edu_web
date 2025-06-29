@@ -14,10 +14,11 @@ export function useSupabase() {
   return {
     supabase,
     
-    // Auth helpers - Modified for username login with enhanced debugging
+    // Auth helpers - Enhanced debugging and error handling
     async signUp(username: string, password: string, userType: string, childAge: number) {
       try {
         console.log('🚀 Starting signup process for:', username);
+        console.log('📋 Signup parameters:', { username, userType, childAge });
         
         // Create a fake email from username for Supabase
         const email = `${username}@local.app`;
@@ -36,18 +37,27 @@ export function useSupabase() {
         console.log('✅ Auth user created:', data.user?.id);
 
         if (data.user) {
-          // Wait a bit for the user to be fully created in Supabase
+          // Wait longer for the user to be fully created in Supabase
           console.log('⏳ Waiting for user to be fully created...');
-          await new Promise(resolve => setTimeout(resolve, 2000)); // Increased wait time
+          await new Promise(resolve => setTimeout(resolve, 3000)); // Increased to 3 seconds
           
           try {
+            console.log('🔍 Checking current auth session...');
+            const { data: sessionData } = await supabase.auth.getSession();
+            console.log('📊 Current session:', sessionData.session?.user?.id);
+            
+            // Verify the user is properly authenticated
+            const { data: currentUser } = await supabase.auth.getUser();
+            console.log('👤 Current authenticated user:', currentUser.user?.id);
+            
+            if (!currentUser.user) {
+              console.error('❌ User not properly authenticated after signup');
+              throw new Error('사용자 인증에 실패했습니다. 다시 시도해주세요.');
+            }
+            
             console.log('👤 Creating user profile...');
             
-            // First, let's check if the user exists in auth
-            const { data: currentUser } = await supabase.auth.getUser();
-            console.log('🔍 Current auth user:', currentUser.user?.id);
-            
-            // Create user profile with actual username
+            // Create user profile with detailed logging
             const profileData = {
               user_id: data.user.id,
               username,
@@ -57,7 +67,23 @@ export function useSupabase() {
             };
             
             console.log('📝 Profile data to insert:', profileData);
+            console.log('🔑 Using user ID:', data.user.id);
+            console.log('🔑 Auth UID should be:', currentUser.user.id);
             
+            // Test RLS by trying a simple query first
+            console.log('🧪 Testing RLS access...');
+            try {
+              const { data: testData, error: testError } = await supabase
+                .from('user_profiles')
+                .select('count')
+                .limit(1);
+              
+              console.log('🧪 RLS test result:', { testData, testError });
+            } catch (testErr) {
+              console.error('🧪 RLS test failed:', testErr);
+            }
+            
+            // Try inserting the profile
             const { data: profileResult, error: profileError } = await supabase
               .from('user_profiles')
               .insert(profileData)
@@ -65,7 +91,7 @@ export function useSupabase() {
               .single();
 
             if (profileError) {
-              console.error('❌ Profile creation error:', {
+              console.error('❌ Profile creation error details:', {
                 error: profileError,
                 code: profileError.code,
                 message: profileError.message,
@@ -73,11 +99,16 @@ export function useSupabase() {
                 hint: profileError.hint
               });
               
-              // More specific error handling
+              // Enhanced error handling with specific solutions
               if (profileError.code === '42501') {
-                throw new Error('데이터베이스 권한 오류입니다. RLS 정책을 확인해주세요.');
+                console.error('🔒 RLS Policy Error - checking auth state...');
+                const { data: authCheck } = await supabase.auth.getUser();
+                console.error('🔍 Auth check result:', authCheck.user?.id);
+                throw new Error('데이터베이스 권한 오류입니다. 관리자에게 문의하세요.');
               } else if (profileError.code === '23505') {
                 throw new Error('이미 사용 중인 아이디입니다.');
+              } else if (profileError.code === 'PGRST301') {
+                throw new Error('데이터베이스 연결 오류입니다. 잠시 후 다시 시도해주세요.');
               } else {
                 throw new Error(`프로필 생성 실패: ${profileError.message}`);
               }
@@ -85,7 +116,7 @@ export function useSupabase() {
 
             console.log('✅ Profile created successfully:', profileResult);
 
-            // Initialize user progress
+            // Initialize user progress with better error handling
             console.log('📊 Creating user progress...');
             const progressData = {
               user_id: data.user.id,
@@ -114,9 +145,16 @@ export function useSupabase() {
           } catch (profileError) {
             console.error('💥 Error in profile creation process:', profileError);
             
-            // Clean up the auth user if profile creation fails
+            // Enhanced cleanup process
             console.log('🧹 Cleaning up auth user due to profile creation failure...');
             try {
+              // First try to delete the user profile if it was partially created
+              await supabase
+                .from('user_profiles')
+                .delete()
+                .eq('user_id', data.user.id);
+              
+              // Then sign out
               await supabase.auth.signOut();
               console.log('✅ Auth user cleaned up');
             } catch (cleanupError) {
@@ -176,10 +214,21 @@ export function useSupabase() {
       return user;
     },
 
-    // Check if username exists with better error handling
+    // Enhanced username check with better error handling
     async checkUsernameExists(username: string) {
       try {
         console.log('🔍 Checking if username exists:', username);
+        
+        // First check if we can access the table at all
+        const { data: testAccess, error: accessError } = await supabase
+          .from('user_profiles')
+          .select('count')
+          .limit(1);
+        
+        if (accessError) {
+          console.error('❌ Cannot access user_profiles table:', accessError);
+          return false; // Assume username doesn't exist if we can't check
+        }
         
         const { data, error } = await supabase
           .from('user_profiles')
@@ -204,6 +253,48 @@ export function useSupabase() {
       } catch (error) {
         console.error('💥 Username check error:', error);
         return false;
+      }
+    },
+
+    // Enhanced connection test
+    async testDatabaseConnection() {
+      try {
+        console.log('🔍 Testing database connection...');
+        
+        // Test 1: Basic connection
+        const { data: authUser } = await supabase.auth.getUser();
+        console.log('👤 Current auth user:', authUser.user?.id);
+        
+        // Test 2: Public table access (badges)
+        const { data: badges, error: badgesError } = await supabase
+          .from('badges')
+          .select('count')
+          .limit(1);
+        
+        console.log('🏆 Badges table test:', { badges, badgesError });
+        
+        // Test 3: User-specific table access (if authenticated)
+        if (authUser.user) {
+          const { data: profiles, error: profilesError } = await supabase
+            .from('user_profiles')
+            .select('count')
+            .limit(1);
+          
+          console.log('👤 Profiles table test:', { profiles, profilesError });
+        }
+        
+        return {
+          success: true,
+          authUser: authUser.user?.id,
+          badgesAccess: !badgesError,
+          profilesAccess: authUser.user ? !badgesError : 'not_authenticated'
+        };
+      } catch (error) {
+        console.error('💥 Database connection test failed:', error);
+        return {
+          success: false,
+          error: error
+        };
       }
     },
 

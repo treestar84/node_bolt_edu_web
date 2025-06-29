@@ -73,6 +73,14 @@
 
           <div v-if="authStore.error" class="error-message">
             {{ authStore.error }}
+            <div v-if="authStore.error.includes('데이터베이스 권한')" class="error-details">
+              <p><strong>해결 방법:</strong></p>
+              <ol>
+                <li>Supabase 대시보드에서 RLS 정책을 확인해주세요</li>
+                <li>아래 "연결 테스트" 버튼을 클릭해보세요</li>
+                <li>문제가 지속되면 관리자에게 문의하세요</li>
+              </ol>
+            </div>
           </div>
 
           <button 
@@ -113,18 +121,47 @@
             </div>
           </div>
           
-          <!-- Debug Information -->
+          <!-- Enhanced Debug Information -->
           <div v-if="showDebugInfo" class="debug-info">
-            <h4>디버그 정보</h4>
+            <h4>🔍 디버그 정보</h4>
             <div class="debug-content">
-              <p><strong>Supabase URL:</strong> {{ debugInfo.supabaseUrl ? '✅ 설정됨' : '❌ 없음' }}</p>
-              <p><strong>Supabase Key:</strong> {{ debugInfo.supabaseKey ? '✅ 설정됨' : '❌ 없음' }}</p>
-              <p><strong>현재 사용자:</strong> {{ debugInfo.currentUser || '없음' }}</p>
-              <p><strong>마지막 오류:</strong> {{ authStore.error || '없음' }}</p>
+              <div class="debug-section">
+                <h5>환경 설정</h5>
+                <p><strong>Supabase URL:</strong> {{ debugInfo.supabaseUrl ? '✅ 설정됨' : '❌ 없음' }}</p>
+                <p><strong>Supabase Key:</strong> {{ debugInfo.supabaseKey ? '✅ 설정됨' : '❌ 없음' }}</p>
+              </div>
+              
+              <div class="debug-section">
+                <h5>인증 상태</h5>
+                <p><strong>현재 사용자:</strong> {{ debugInfo.currentUser || '없음' }}</p>
+                <p><strong>인증 상태:</strong> {{ authStore.isAuthenticated ? '✅ 인증됨' : '❌ 미인증' }}</p>
+              </div>
+              
+              <div class="debug-section">
+                <h5>오류 정보</h5>
+                <p><strong>마지막 오류:</strong> {{ authStore.error || '없음' }}</p>
+              </div>
+              
+              <div v-if="connectionTestResult" class="debug-section">
+                <h5>연결 테스트 결과</h5>
+                <p><strong>전체 상태:</strong> {{ connectionTestResult.success ? '✅ 성공' : '❌ 실패' }}</p>
+                <p><strong>뱃지 테이블:</strong> {{ connectionTestResult.badgesAccess ? '✅ 접근 가능' : '❌ 접근 불가' }}</p>
+                <p><strong>프로필 테이블:</strong> {{ 
+                  connectionTestResult.profilesAccess === true ? '✅ 접근 가능' : 
+                  connectionTestResult.profilesAccess === false ? '❌ 접근 불가' : 
+                  '⚠️ 미인증' 
+                }}</p>
+              </div>
             </div>
-            <button @click="testConnection" class="debug-btn" type="button">
-              연결 테스트
-            </button>
+            
+            <div class="debug-actions">
+              <button @click="testConnection" class="debug-btn" type="button" :disabled="isTestingConnection">
+                {{ isTestingConnection ? '테스트 중...' : '🔍 연결 테스트' }}
+              </button>
+              <button @click="clearDebugData" class="debug-btn secondary" type="button">
+                🗑️ 디버그 초기화
+              </button>
+            </div>
           </div>
           
           <button 
@@ -132,7 +169,7 @@
             class="debug-toggle"
             type="button"
           >
-            {{ showDebugInfo ? '디버그 숨기기' : '디버그 정보 보기' }}
+            {{ showDebugInfo ? '디버그 숨기기' : '🔧 디버그 정보 보기' }}
           </button>
         </div>
       </div>
@@ -148,10 +185,12 @@ import { useSupabase } from '@/composables/useSupabase';
 
 const router = useRouter();
 const authStore = useAuthStore();
-const { supabase } = useSupabase();
+const { supabase, testDatabaseConnection } = useSupabase();
 
 const isRegister = ref(false);
 const showDebugInfo = ref(false);
+const isTestingConnection = ref(false);
+const connectionTestResult = ref<any>(null);
 
 const formData = reactive({
   username: '',
@@ -192,6 +231,12 @@ const handleSubmit = async () => {
     router.push('/');
   } else {
     console.error('❌ Form submission failed');
+    // Auto-run connection test if there's a database error
+    if (authStore.error.includes('데이터베이스') || authStore.error.includes('권한')) {
+      setTimeout(() => {
+        testConnection();
+      }, 1000);
+    }
   }
 };
 
@@ -228,25 +273,35 @@ const fillDemoAccount = (type: 'parent' | 'teacher') => {
 
 const testConnection = async () => {
   try {
-    console.log('🔍 Testing Supabase connection...');
+    isTestingConnection.value = true;
+    console.log('🔍 Starting comprehensive connection test...');
     
-    // Test basic connection
-    const { data, error } = await supabase
-      .from('badges')
-      .select('count')
-      .limit(1);
+    const result = await testDatabaseConnection();
+    connectionTestResult.value = result;
     
-    if (error) {
-      console.error('❌ Connection test failed:', error);
-      alert(`연결 실패: ${error.message}`);
+    if (result.success) {
+      console.log('✅ Connection test successful:', result);
+      alert('✅ 데이터베이스 연결 성공!\n\n' + 
+            `인증 사용자: ${result.authUser || '없음'}\n` +
+            `뱃지 테이블: ${result.badgesAccess ? '접근 가능' : '접근 불가'}\n` +
+            `프로필 테이블: ${result.profilesAccess === true ? '접근 가능' : result.profilesAccess === false ? '접근 불가' : '미인증'}`);
     } else {
-      console.log('✅ Connection test successful');
-      alert('✅ Supabase 연결 성공!');
+      console.error('❌ Connection test failed:', result);
+      alert(`❌ 연결 실패!\n\n오류: ${result.error?.message || '알 수 없는 오류'}`);
     }
   } catch (err) {
     console.error('💥 Connection test error:', err);
-    alert(`연결 오류: ${err}`);
+    alert(`💥 연결 테스트 오류: ${err}`);
+  } finally {
+    isTestingConnection.value = false;
   }
+};
+
+const clearDebugData = () => {
+  connectionTestResult.value = null;
+  authStore.error = '';
+  console.clear();
+  console.log('🗑️ Debug data cleared');
 };
 
 onMounted(() => {
@@ -270,7 +325,7 @@ onMounted(() => {
 
 .login-container {
   width: 100%;
-  max-width: 450px;
+  max-width: 500px;
 }
 
 .login-card {
@@ -319,8 +374,28 @@ onMounted(() => {
   padding: var(--spacing-md);
   border-radius: var(--radius-md);
   margin-bottom: var(--spacing-lg);
-  text-align: center;
+  text-align: left;
   font-weight: 500;
+}
+
+.error-details {
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.error-details p {
+  margin-bottom: var(--spacing-sm);
+  font-weight: 600;
+}
+
+.error-details ol {
+  margin-left: var(--spacing-lg);
+  font-size: 0.875rem;
+}
+
+.error-details li {
+  margin-bottom: var(--spacing-xs);
 }
 
 .login-footer {
@@ -384,12 +459,31 @@ onMounted(() => {
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  padding: var(--spacing-md);
+  padding: var(--spacing-lg);
   margin-bottom: var(--spacing-md);
   text-align: left;
 }
 
 .debug-info h4 {
+  font-size: 1rem;
+  color: var(--color-text-primary);
+  margin-bottom: var(--spacing-md);
+  font-weight: 600;
+}
+
+.debug-section {
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.debug-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.debug-section h5 {
   font-size: 0.875rem;
   color: var(--color-text-primary);
   margin-bottom: var(--spacing-sm);
@@ -400,17 +494,47 @@ onMounted(() => {
   font-size: 0.75rem;
   color: var(--color-text-secondary);
   margin-bottom: var(--spacing-xs);
+  font-family: 'Courier New', monospace;
+}
+
+.debug-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--color-border);
 }
 
 .debug-btn {
   background: var(--color-primary);
   color: white;
   border: none;
-  padding: var(--spacing-xs) var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
   border-radius: var(--radius-sm);
   font-size: 0.75rem;
   cursor: pointer;
-  margin-top: var(--spacing-sm);
+  transition: all 0.2s ease;
+  flex: 1;
+}
+
+.debug-btn:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+}
+
+.debug-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.debug-btn.secondary {
+  background: var(--color-bg-card);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.debug-btn.secondary:hover:not(:disabled) {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
 }
 
 .debug-toggle {
@@ -420,6 +544,11 @@ onMounted(() => {
   font-size: 0.75rem;
   cursor: pointer;
   text-decoration: underline;
+  transition: color 0.2s ease;
+}
+
+.debug-toggle:hover {
+  color: var(--color-text-secondary);
 }
 
 @media (max-width: 768px) {
@@ -436,6 +565,10 @@ onMounted(() => {
   }
   
   .demo-buttons {
+    flex-direction: column;
+  }
+  
+  .debug-actions {
     flex-direction: column;
   }
 }
