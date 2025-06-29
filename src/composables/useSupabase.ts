@@ -14,7 +14,7 @@ export function useSupabase() {
   return {
     supabase,
     
-    // Auth helpers - Enhanced debugging and error handling
+    // Auth helpers - Enhanced with email confirmation disabled
     async signUp(username: string, password: string, userType: string, childAge: number) {
       try {
         console.log('🚀 Starting signup process for:', username);
@@ -24,24 +24,65 @@ export function useSupabase() {
         const email = `${username}@local.app`;
         
         console.log('📧 Creating auth user with email:', email);
+        
+        // Sign up with email confirmation disabled
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            emailRedirectTo: undefined, // Disable email confirmation
+            data: {
+              username: username,
+              user_type: userType,
+              child_age: childAge,
+              email_confirm: false // Custom flag to indicate no email confirmation needed
+            }
+          }
         });
 
         if (error) {
           console.error('❌ Auth signup error:', error);
+          
+          // Handle specific email rate limit error
+          if (error.message.includes('rate limit') || error.message.includes('email rate limit')) {
+            throw new Error('회원가입 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.');
+          } else if (error.message.includes('already registered') || error.message.includes('already been registered')) {
+            throw new Error('이미 사용 중인 아이디입니다.');
+          } else if (error.message.includes('Password') || error.message.includes('password')) {
+            throw new Error('비밀번호는 최소 6자 이상이어야 합니다.');
+          }
+          
           throw error;
         }
 
         console.log('✅ Auth user created:', data.user?.id);
+        console.log('📊 Session data:', data.session ? 'Session created' : 'No session');
 
         if (data.user) {
-          // Wait longer for the user to be fully created in Supabase
-          console.log('⏳ Waiting for user to be fully created...');
-          await new Promise(resolve => setTimeout(resolve, 3000)); // Increased to 3 seconds
+          // For users created without email confirmation, they should be immediately available
+          console.log('👤 User created successfully, proceeding with profile creation...');
           
           try {
+            // Wait a moment for the user to be fully created
+            console.log('⏳ Waiting for user to be fully created...');
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // If no session was created (email confirmation required), try to sign in
+            if (!data.session) {
+              console.log('🔐 No session created, attempting to sign in...');
+              const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+                email,
+                password,
+              });
+              
+              if (signInError) {
+                console.error('❌ Auto sign-in failed:', signInError);
+                throw new Error('계정이 생성되었지만 로그인에 실패했습니다. 수동으로 로그인해주세요.');
+              }
+              
+              console.log('✅ Auto sign-in successful');
+            }
+            
             console.log('🔍 Checking current auth session...');
             const { data: sessionData } = await supabase.auth.getSession();
             console.log('📊 Current session:', sessionData.session?.user?.id);
@@ -52,7 +93,7 @@ export function useSupabase() {
             
             if (!currentUser.user) {
               console.error('❌ User not properly authenticated after signup');
-              throw new Error('사용자 인증에 실패했습니다. 다시 시도해주세요.');
+              throw new Error('사용자 인증에 실패했습니다. 수동으로 로그인해주세요.');
             }
             
             console.log('👤 Creating user profile...');
@@ -188,6 +229,14 @@ export function useSupabase() {
 
         if (error) {
           console.error('❌ Auth signin error:', error);
+          
+          // Handle specific errors
+          if (error.message.includes('Invalid login credentials') || error.message.includes('invalid_credentials')) {
+            throw new Error('아이디 또는 비밀번호가 올바르지 않습니다.');
+          } else if (error.message.includes('Email not confirmed')) {
+            throw new Error('이메일 인증이 필요합니다. 관리자에게 문의하세요.');
+          }
+          
           throw error;
         }
         

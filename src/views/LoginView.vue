@@ -81,6 +81,21 @@
                 <li>문제가 지속되면 관리자에게 문의하세요</li>
               </ol>
             </div>
+            <div v-if="authStore.error.includes('rate limit') || authStore.error.includes('너무 많습니다')" class="error-details">
+              <p><strong>이메일 제한 오류 해결:</strong></p>
+              <ol>
+                <li>Supabase 대시보드 → Authentication → Settings</li>
+                <li>"Enable email confirmations" 옵션을 <strong>비활성화</strong></li>
+                <li>5-10분 후 다시 시도해주세요</li>
+              </ol>
+            </div>
+            <div v-if="authStore.error.includes('계정이 생성되었습니다')" class="success-details">
+              <p><strong>✅ 회원가입 성공!</strong></p>
+              <p>로그인 모드로 전환하여 다시 로그인해주세요.</p>
+              <button @click="switchToLogin" class="btn btn-sm btn-primary" type="button">
+                로그인 모드로 전환
+              </button>
+            </div>
           </div>
 
           <button 
@@ -246,6 +261,12 @@ const toggleMode = () => {
   resetForm();
 };
 
+const switchToLogin = () => {
+  isRegister.value = false;
+  authStore.error = '';
+  // Keep the username and password for easy login
+};
+
 const resetForm = () => {
   formData.username = '';
   formData.password = '';
@@ -396,6 +417,18 @@ onMounted(() => {
 
 .error-details li {
   margin-bottom: var(--spacing-xs);
+}
+
+.success-details {
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid rgba(16, 185, 129, 0.3);
+  color: var(--color-success);
+}
+
+.success-details p {
+  margin-bottom: var(--spacing-sm);
+  font-weight: 600;
 }
 
 .login-footer {

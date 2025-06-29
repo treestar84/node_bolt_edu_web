@@ -162,7 +162,9 @@ export const useAuthStore = defineStore('auth', () => {
       console.error('💥 Registration error:', err);
       
       // Enhanced error handling with more specific messages
-      if (err.message.includes('already registered') || err.message.includes('already been registered')) {
+      if (err.message.includes('rate limit') || err.message.includes('email rate limit')) {
+        error.value = '회원가입 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.';
+      } else if (err.message.includes('already registered') || err.message.includes('already been registered')) {
         error.value = '이미 사용 중인 아이디입니다.';
       } else if (err.message.includes('Password') || err.message.includes('password')) {
         error.value = '비밀번호는 최소 6자 이상이어야 합니다.';
@@ -172,6 +174,8 @@ export const useAuthStore = defineStore('auth', () => {
         error.value = '데이터베이스 권한 오류입니다. 관리자에게 문의하세요.';
       } else if (err.message.includes('데이터베이스 권한 오류')) {
         error.value = err.message;
+      } else if (err.message.includes('수동으로 로그인')) {
+        error.value = '계정이 생성되었습니다. 로그인 페이지에서 다시 로그인해주세요.';
       } else {
         error.value = err.message || '회원가입 중 오류가 발생했습니다. 다시 시도해주세요.';
       }
@@ -205,6 +209,8 @@ export const useAuthStore = defineStore('auth', () => {
       console.error('💥 Login error:', err);
       if (err.message.includes('Invalid login credentials') || err.message.includes('invalid_credentials')) {
         error.value = '아이디 또는 비밀번호가 올바르지 않습니다.';
+      } else if (err.message.includes('Email not confirmed')) {
+        error.value = '이메일 인증이 필요합니다. 관리자에게 문의하세요.';
       } else {
         error.value = err.message || '로그인 중 오류가 발생했습니다.';
       }
