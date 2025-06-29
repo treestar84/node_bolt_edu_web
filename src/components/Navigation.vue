@@ -4,7 +4,7 @@
       <div class="nav-content">
         <router-link to="/" class="nav-brand">
           <span class="brand-icon">🎓</span>
-          <span class="brand-text">유아학습</span>
+          <span class="brand-text">{{ authStore.siteName }}</span>
         </router-link>
         
         <div class="nav-menu">
@@ -21,6 +21,10 @@
         </div>
 
         <div class="nav-controls">
+          <div class="age-indicator" v-if="authStore.userProfile">
+            <span class="age-badge">{{ authStore.childAge }}세</span>
+          </div>
+          
           <div class="language-toggle">
             <button 
               @click="toggleLanguage"
@@ -38,9 +42,17 @@
             </button>
           </div>
           
-          <router-link to="/admin" class="btn btn-sm btn-secondary">
-            관리자
-          </router-link>
+          <div class="user-menu" v-if="authStore.isAuthenticated">
+            <router-link to="/settings" class="btn btn-sm btn-secondary">
+              ⚙️ 설정
+            </router-link>
+          </div>
+          
+          <div v-else class="auth-buttons">
+            <router-link to="/login" class="btn btn-sm btn-primary">
+              로그인
+            </router-link>
+          </div>
         </div>
       </div>
     </div>
@@ -50,8 +62,10 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useAppStore } from '@/stores/app';
+import { useAuthStore } from '@/stores/auth';
 
 const store = useAppStore();
+const authStore = useAuthStore();
 
 const menuItems = computed(() => [
   { name: '단어학습', path: '/words', icon: '📚' },
@@ -135,6 +149,20 @@ const toggleLanguage = () => {
   gap: var(--spacing-md);
 }
 
+.age-indicator {
+  display: flex;
+  align-items: center;
+}
+
+.age-badge {
+  background: var(--color-primary);
+  color: white;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-md);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
 .language-toggle {
   display: flex;
   background: var(--color-bg-secondary);
@@ -155,6 +183,11 @@ const toggleLanguage = () => {
   color: white;
 }
 
+.auth-buttons {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
 @media (max-width: 768px) {
   .nav-content {
     flex-direction: column;
@@ -168,6 +201,8 @@ const toggleLanguage = () => {
   
   .nav-controls {
     order: 1;
+    flex-wrap: wrap;
+    justify-content: center;
   }
   
   .nav-item {

@@ -7,10 +7,10 @@
         <section class="hero-section">
           <div class="hero-content">
             <h1 class="hero-title fade-in">
-              즐거운 학습의 시작! 🌟
+              {{ authStore.siteName }}에 오신 것을 환영합니다! 🌟
             </h1>
             <p class="hero-description fade-in">
-              재미있는 단어 학습과 퀴즈로 아이들의 호기심을 키워보세요
+              {{ authStore.childAge }}세 {{ authStore.userProfile?.username }}님을 위한 맞춤형 학습 콘텐츠
             </p>
             
             <div class="hero-actions fade-in">
@@ -26,20 +26,24 @@
           </div>
           
           <div class="hero-image fade-in">
+            <div class="main-image-container">
+              <img 
+                :src="heroImageUrl" 
+                :alt="authStore.siteName"
+                class="main-image"
+              />
+            </div>
             <div class="floating-card">
               <img src="https://images.pexels.com/photos/1108099/pexels-photo-1108099.jpeg?auto=compress&cs=tinysrgb&w=300" alt="Learning" />
             </div>
             <div class="floating-card delay-1">
               <img src="https://images.pexels.com/photos/104827/cat-pet-animal-domestic-104827.jpeg?auto=compress&cs=tinysrgb&w=300" alt="Cat" />
             </div>
-            <div class="floating-card delay-2">
-              <img src="https://images.pexels.com/photos/102104/pexels-photo-102104.jpeg?auto=compress&cs=tinysrgb&w=300" alt="Apple" />
-            </div>
           </div>
         </section>
 
         <section class="features-section">
-          <h2 class="section-title">학습 모드</h2>
+          <h2 class="section-title">{{ authStore.childAge }}세 맞춤 학습 모드</h2>
           
           <div class="features-grid">
             <div class="feature-card" v-for="feature in features" :key="feature.path">
@@ -56,29 +60,32 @@
         </section>
 
         <section class="stats-section">
-          <div class="stats-grid">
+          <div class="stats-grid" v-if="authStore.userProgress">
             <div class="stat-card">
               <div class="stat-icon">📚</div>
-              <div class="stat-value">{{ store.currentWords.length }}</div>
+              <div class="stat-value">{{ contentStore.words.length }}</div>
               <div class="stat-label">학습 단어</div>
             </div>
             <div class="stat-card">
               <div class="stat-icon">📖</div>
-              <div class="stat-value">{{ store.currentBooks.length }}</div>
+              <div class="stat-value">{{ contentStore.books.length }}</div>
               <div class="stat-label">그림책</div>
             </div>
             <div class="stat-card">
               <div class="stat-icon">🏆</div>
-              <div class="stat-value">{{ store.quizScore }}</div>
+              <div class="stat-value">{{ authStore.userProgress.quizScore }}</div>
               <div class="stat-label">퀴즈 점수</div>
             </div>
             <div class="stat-card">
               <div class="stat-icon">🧩</div>
-              <div class="stat-value">{{ store.puzzleCompletions || 0 }}</div>
+              <div class="stat-value">{{ authStore.userProgress.puzzleCompletions }}</div>
               <div class="stat-label">퍼즐 완성</div>
             </div>
           </div>
         </section>
+
+        <!-- Badge Display -->
+        <BadgeDisplay />
       </div>
     </main>
   </div>
@@ -87,9 +94,25 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import Navigation from '@/components/Navigation.vue';
-import { useAppStore } from '@/stores/app';
+import BadgeDisplay from '@/components/BadgeDisplay.vue';
+import { useAuthStore } from '@/stores/auth';
+import { useContentStore } from '@/stores/content';
+import { useFileUpload } from '@/composables/useFileUpload';
 
-const store = useAppStore();
+const authStore = useAuthStore();
+const contentStore = useContentStore();
+const { getUploadedFileUrl } = useFileUpload();
+
+const heroImageUrl = computed(() => {
+  if (authStore.mainImageUrl) {
+    if (authStore.mainImageUrl.startsWith('/uploads/')) {
+      return getUploadedFileUrl(authStore.mainImageUrl.replace('/uploads/', '')) || authStore.mainImageUrl;
+    }
+    return authStore.mainImageUrl;
+  }
+  // Default hero image
+  return 'https://images.pexels.com/photos/1108099/pexels-photo-1108099.jpeg?auto=compress&cs=tinysrgb&w=600';
+});
 
 const features = computed(() => [
   {
@@ -97,28 +120,28 @@ const features = computed(() => [
     title: '단어 학습',
     description: '이미지를 누르면 음성과 함께 단어를 배워요',
     path: '/words',
-    count: store.currentWords.length
+    count: contentStore.words.length
   },
   {
     icon: '🧩',
     title: '퀴즈 게임',
     description: '음성을 듣고 정답을 찾는 재미있는 퀴즈',
     path: '/quiz',
-    count: Math.floor(store.currentWords.length / 3)
+    count: Math.floor(contentStore.words.length / 3)
   },
   {
     icon: '🧩',
     title: '퍼즐 맞추기',
     description: '이미지 조각을 맞춰서 완성하는 퍼즐 게임',
     path: '/puzzle',
-    count: store.currentWords.length
+    count: contentStore.words.length
   },
   {
     icon: '📖',
     title: '그림책',
-    description: '4장으로 구성된 재미있는 그림책 읽기',
+    description: '재미있는 그림책 읽기',
     path: '/books',
-    count: store.currentBooks.length
+    count: contentStore.books.length
   }
 ]);
 </script>
@@ -147,7 +170,7 @@ const features = computed(() => [
 }
 
 .hero-title {
-  font-size: 3.5rem;
+  font-size: 3rem;
   font-weight: 700;
   line-height: 1.1;
   margin-bottom: var(--spacing-lg);
@@ -178,6 +201,24 @@ const features = computed(() => [
   animation-delay: 0.8s;
 }
 
+.main-image-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 300px;
+  height: 300px;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: var(--shadow-xl);
+  z-index: 2;
+}
+
+.main-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .floating-card {
   position: absolute;
   width: 120px;
@@ -194,22 +235,16 @@ const features = computed(() => [
   object-fit: cover;
 }
 
-.floating-card:nth-child(1) {
+.floating-card:nth-child(2) {
   top: 20%;
   right: 20%;
   animation-delay: 0s;
 }
 
-.floating-card:nth-child(2) {
+.floating-card:nth-child(3) {
   top: 60%;
   right: 60%;
   animation-delay: 1s;
-}
-
-.floating-card:nth-child(3) {
-  top: 10%;
-  right: 70%;
-  animation-delay: 2s;
 }
 
 @keyframes float {
@@ -230,7 +265,7 @@ const features = computed(() => [
 
 .features-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: var(--spacing-2xl);
 }
 
@@ -347,6 +382,13 @@ const features = computed(() => [
   .hero-image {
     height: 250px;
     order: -1;
+  }
+  
+  .main-image-container {
+    width: 200px;
+    height: 200px;
+    left: 50%;
+    transform: translateX(-50%);
   }
   
   .floating-card {
