@@ -138,6 +138,8 @@ export const useAuthStore = defineStore('auth', () => {
         error.value = '비밀번호는 최소 6자 이상이어야 합니다.';
       } else if (err.message.includes('프로필 생성 실패')) {
         error.value = '회원가입 중 오류가 발생했습니다. 다시 시도해주세요.';
+      } else if (err.message.includes('row-level security')) {
+        error.value = '데이터베이스 권한 오류입니다. 관리자에게 문의하세요.';
       } else {
         error.value = err.message || '회원가입 중 오류가 발생했습니다.';
       }

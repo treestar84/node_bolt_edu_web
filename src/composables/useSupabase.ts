@@ -28,40 +28,47 @@ export function useSupabase() {
         if (error) throw error;
 
         if (data.user) {
-          // Wait a bit for the user to be fully created
+          // Wait a bit for the user to be fully created in Supabase
           await new Promise(resolve => setTimeout(resolve, 1000));
           
-          // Create user profile with actual username
-          const { error: profileError } = await supabase
-            .from('user_profiles')
-            .insert({
-              user_id: data.user.id,
-              username,
-              user_type: userType,
-              child_age: childAge,
-              site_name: '유아학습'
-            });
+          try {
+            // Create user profile with actual username
+            const { error: profileError } = await supabase
+              .from('user_profiles')
+              .insert({
+                user_id: data.user.id,
+                username,
+                user_type: userType,
+                child_age: childAge,
+                site_name: '유아학습'
+              });
 
-          if (profileError) {
-            console.error('Profile creation error:', profileError);
-            throw new Error(`프로필 생성 실패: ${profileError.message}`);
-          }
+            if (profileError) {
+              console.error('Profile creation error:', profileError);
+              throw new Error(`프로필 생성 실패: ${profileError.message}`);
+            }
 
-          // Initialize user progress
-          const { error: progressError } = await supabase
-            .from('user_progress')
-            .insert({
-              user_id: data.user.id,
-              quiz_score: 0,
-              quiz_streak: 0,
-              puzzle_completions: 0,
-              words_learned: 0,
-              books_read: 0
-            });
+            // Initialize user progress
+            const { error: progressError } = await supabase
+              .from('user_progress')
+              .insert({
+                user_id: data.user.id,
+                quiz_score: 0,
+                quiz_streak: 0,
+                puzzle_completions: 0,
+                words_learned: 0,
+                books_read: 0
+              });
 
-          if (progressError) {
-            console.error('Progress creation error:', progressError);
-            // Don't throw error for progress, it's not critical
+            if (progressError) {
+              console.error('Progress creation error:', progressError);
+              // Don't throw error for progress, it's not critical for signup
+            }
+          } catch (profileError) {
+            console.error('Error creating user profile:', profileError);
+            // Clean up the auth user if profile creation fails
+            await supabase.auth.signOut();
+            throw profileError;
           }
         }
 
