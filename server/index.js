@@ -154,20 +154,31 @@ app.use('*', (req, res) => {
   });
 });
 
-// Ensure uploads directory exists
-const uploadsDir = join(__dirname, 'uploads');
-try {
-  await fs.access(uploadsDir);
-} catch {
-  await fs.mkdir(uploadsDir, { recursive: true });
-  await fs.mkdir(join(uploadsDir, 'images'), { recursive: true });
-  await fs.mkdir(join(uploadsDir, 'audio'), { recursive: true });
-}
+// Initialize server
+const initializeServer = async () => {
+  try {
+    // Ensure uploads directory exists
+    const uploadsDir = join(__dirname, 'uploads');
+    try {
+      await fs.access(uploadsDir);
+    } catch {
+      await fs.mkdir(uploadsDir, { recursive: true });
+      await fs.mkdir(join(uploadsDir, 'images'), { recursive: true });
+      await fs.mkdir(join(uploadsDir, 'audio'), { recursive: true });
+    }
 
-app.listen(PORT, () => {
-  console.log(`🚀 API Server running on port ${PORT}`);
-  console.log(`📚 API Documentation: http://localhost:${PORT}/api/docs`);
-  console.log(`🏥 Health Check: http://localhost:${PORT}/health`);
-});
+    // Start server
+    app.listen(PORT, () => {
+      console.log(`🚀 API Server running on port ${PORT}`);
+      console.log(`📚 API Documentation: http://localhost:${PORT}/api/docs`);
+      console.log(`🏥 Health Check: http://localhost:${PORT}/health`);
+    });
+  } catch (error) {
+    console.error('Failed to initialize server:', error);
+    process.exit(1);
+  }
+};
+
+initializeServer();
 
 export default app;

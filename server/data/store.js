@@ -7,39 +7,45 @@ const WORDS_FILE = join(DATA_DIR, 'words.json');
 const BOOKS_FILE = join(DATA_DIR, 'books.json');
 const API_KEYS_FILE = join(DATA_DIR, 'apiKeys.json');
 
-// Ensure data directory exists
-try {
-  await fs.access(DATA_DIR);
-} catch {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-}
-
 // Initialize data files if they don't exist
 const initializeDataFiles = async () => {
   try {
-    await fs.access(WORDS_FILE);
-  } catch {
-    await fs.writeFile(WORDS_FILE, JSON.stringify([], null, 2));
-  }
-  
-  try {
-    await fs.access(BOOKS_FILE);
-  } catch {
-    await fs.writeFile(BOOKS_FILE, JSON.stringify([], null, 2));
-  }
-  
-  try {
-    await fs.access(API_KEYS_FILE);
-  } catch {
-    await fs.writeFile(API_KEYS_FILE, JSON.stringify([], null, 2));
+    // Ensure data directory exists
+    try {
+      await fs.access(DATA_DIR);
+    } catch {
+      await fs.mkdir(DATA_DIR, { recursive: true });
+    }
+
+    // Initialize words file
+    try {
+      await fs.access(WORDS_FILE);
+    } catch {
+      await fs.writeFile(WORDS_FILE, JSON.stringify([], null, 2));
+    }
+    
+    // Initialize books file
+    try {
+      await fs.access(BOOKS_FILE);
+    } catch {
+      await fs.writeFile(BOOKS_FILE, JSON.stringify([], null, 2));
+    }
+    
+    // Initialize API keys file
+    try {
+      await fs.access(API_KEYS_FILE);
+    } catch {
+      await fs.writeFile(API_KEYS_FILE, JSON.stringify([], null, 2));
+    }
+  } catch (error) {
+    console.error('Error initializing data files:', error);
   }
 };
-
-await initializeDataFiles();
 
 // Words management
 export const getWords = async () => {
   try {
+    await initializeDataFiles();
     const data = await fs.readFile(WORDS_FILE, 'utf8');
     return JSON.parse(data);
   } catch (error) {
@@ -50,6 +56,7 @@ export const getWords = async () => {
 
 export const saveWords = async (words) => {
   try {
+    await initializeDataFiles();
     await fs.writeFile(WORDS_FILE, JSON.stringify(words, null, 2));
     return true;
   } catch (error) {
@@ -104,6 +111,7 @@ export const deleteWord = async (id) => {
 // Books management
 export const getBooks = async () => {
   try {
+    await initializeDataFiles();
     const data = await fs.readFile(BOOKS_FILE, 'utf8');
     return JSON.parse(data);
   } catch (error) {
@@ -114,6 +122,7 @@ export const getBooks = async () => {
 
 export const saveBooks = async (books) => {
   try {
+    await initializeDataFiles();
     await fs.writeFile(BOOKS_FILE, JSON.stringify(books, null, 2));
     return true;
   } catch (error) {
@@ -166,9 +175,10 @@ export const deleteBook = async (id) => {
 };
 
 // API Keys management
-export const getApiKeys = () => {
+export const getApiKeys = async () => {
   try {
-    const data = fs.readFileSync(API_KEYS_FILE, 'utf8');
+    await initializeDataFiles();
+    const data = await fs.readFile(API_KEYS_FILE, 'utf8');
     return JSON.parse(data);
   } catch (error) {
     console.error('Error reading API keys:', error);
@@ -178,6 +188,7 @@ export const getApiKeys = () => {
 
 export const saveApiKeys = async (apiKeys) => {
   try {
+    await initializeDataFiles();
     await fs.writeFile(API_KEYS_FILE, JSON.stringify(apiKeys, null, 2));
     return true;
   } catch (error) {
@@ -187,7 +198,7 @@ export const saveApiKeys = async (apiKeys) => {
 };
 
 export const addApiKey = async (keyData) => {
-  const apiKeys = getApiKeys();
+  const apiKeys = await getApiKeys();
   const newKey = {
     id: uuidv4(),
     key: uuidv4().replace(/-/g, ''),
@@ -204,7 +215,7 @@ export const addApiKey = async (keyData) => {
 };
 
 export const deleteApiKey = async (id) => {
-  const apiKeys = getApiKeys();
+  const apiKeys = await getApiKeys();
   const filteredKeys = apiKeys.filter(k => k.id !== id);
   
   if (filteredKeys.length === apiKeys.length) {

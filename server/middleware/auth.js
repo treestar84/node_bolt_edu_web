@@ -29,7 +29,7 @@ export const authenticateAdmin = (req, res, next) => {
 };
 
 // API key authentication middleware
-export const authenticateApiKey = (req, res, next) => {
+export const authenticateApiKey = async (req, res, next) => {
   const apiKey = req.headers['x-api-key'];
   
   if (!apiKey) {
@@ -39,22 +39,30 @@ export const authenticateApiKey = (req, res, next) => {
     });
   }
   
-  const apiKeys = getApiKeys();
-  const keyData = apiKeys.find(key => key.key === apiKey && key.active);
-  
-  if (!keyData) {
-    return res.status(401).json({
-      error: 'Unauthorized',
-      message: 'Invalid or inactive API key'
+  try {
+    const apiKeys = await getApiKeys();
+    const keyData = apiKeys.find(key => key.key === apiKey && key.active);
+    
+    if (!keyData) {
+      return res.status(401).json({
+        error: 'Unauthorized',
+        message: 'Invalid or inactive API key'
+      });
+    }
+    
+    // Update last used timestamp
+    keyData.lastUsed = new Date().toISOString();
+    keyData.usageCount = (keyData.usageCount || 0) + 1;
+    
+    req.apiKey = keyData;
+    next();
+  } catch (error) {
+    console.error('Error authenticating API key:', error);
+    return res.status(500).json({
+      error: 'Internal server error',
+      message: 'Error validating API key'
     });
   }
-  
-  // Update last used timestamp
-  keyData.lastUsed = new Date().toISOString();
-  keyData.usageCount = (keyData.usageCount || 0) + 1;
-  
-  req.apiKey = keyData;
-  next();
 };
 
 // Generate JWT token
